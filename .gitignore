@@ -1,1 +1,11 @@
 /artistic-data-viz/node_modules/
+
+# Secrets / local env (never commit real API keys)
+.env
+.env.local
+.env*.local
+/artistic-data-viz/.env
+/artistic-data-viz/src/secret.js
+
+# Generated/raw data (regenerate with data_processing.py)
+/artistic-data-viz/src/spotify_data/

@@ -37,13 +37,18 @@ window.addEventListener('resize', () => {
 
 initYoutubePlayer();
 
+const YT_API_KEY = import.meta.env.VITE_YT_API_KEY;
+if (!YT_API_KEY) {
+  console.warn("VITE_YT_API_KEY manquante : copie .env.example vers .env et renseigne ta clé.");
+}
+
 window.addEventListener('click', async () => {
   if (hoveredIndex !== null) {
     const track = songData[hoveredIndex];
     const query = encodeURIComponent(`${track.artist} ${track.title}`);
 
     try {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${query}&key=AIzaSyBMIrVRwi8bWmz_-Yx0RfUAt_0fcGjjXys`);
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${query}&key=${YT_API_KEY}`);
       const data = await res.json();
       const videoId = data.items[0]?.id?.videoId;
 
@@ -74,7 +79,7 @@ const clusterColors = [
 ];
 
 // InstancedMesh setup
-const geometry = new THREE.SphereGeometry(0.1, 4, 4);
+const geometry = new THREE.SphereGeometry(0.1, 8, 8);
 const material = new THREE.MeshStandardMaterial({ color: "0xffffff" });
 const count = data.length;
 const instancedMesh = new THREE.InstancedMesh(geometry, material, count);
