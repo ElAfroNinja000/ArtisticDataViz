@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message="n_jobs value 1 overridden*")
 
 
-def clean_data(max_rows = 35000):
+def clean_data(max_rows = 45000):
     df = pd.read_csv("spotify_data/spotify_raw_data.csv")
 
     df = df[~df['genre'].isin(['Movie', 'Comedy'])]
