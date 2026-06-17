@@ -48,7 +48,8 @@ def add_3d_coords(df):
     df["y"] = coords_centered[:, 1] * scale
     df["z"] = coords_centered[:, 2] * scale
 
-    df.to_json("spotify_data/spotify_clustered_3d.json", orient="records", force_ascii=False)
+    # Written to public/ so the Vite front-end can fetch it at runtime.
+    df.to_json("../public/spotify_clustered_3d.json", orient="records", force_ascii=False)
     print("✅ Final json with 3D coordinates successfully exported.")
 
 def process_data():

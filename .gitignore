@@ -1,4 +1,5 @@
 /artistic-data-viz/node_modules/
+/artistic-data-viz/dist/
 
 # Secrets / local env (never commit real API keys)
 .env
@@ -7,5 +8,6 @@
 /artistic-data-viz/.env
 /artistic-data-viz/src/secret.js
 
-# Generated/raw data (regenerate with data_processing.py)
+# Raw dataset (input to data_processing.py). The generated
+# spotify_clustered_3d.json lives in public/ and IS committed.
 /artistic-data-viz/src/spotify_data/

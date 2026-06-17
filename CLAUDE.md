@@ -21,15 +21,16 @@ in `artistic-data-viz/src/`.
 artistic-data-viz/
   index.html                  # Vite entry point
   package.json                # Vite + three deps
+  public/
+    spotify_clustered_3d.json # generated data, served at site root, fetched at runtime
   src/
     main.js                   # Three.js scene: InstancedMesh of tracks, hover, click->YouTube
     background.js             # Shader gradient background (separate ortho scene)
     yt_player.js             # YouTube IFrame player + playerReady promise
     data_processing.py       # Python pipeline: clean -> KMeans -> UMAP -> JSON
     style.css
-    spotify_data/            # (gitignored) input CSV + generated JSON
+    spotify_data/            # (gitignored) raw input CSV only
       spotify_raw_data.csv
-      spotify_clustered_3d.json
   requirements.txt            # Python deps for the pipeline
   .env.example                # template for VITE_YT_API_KEY (copy to .env)
   .env                        # (gitignored) real YouTube API key
@@ -54,7 +55,7 @@ Python data pipeline (run from `artistic-data-viz/src/` so the relative
 
 ```bash
 cd artistic-data-viz/src
-python data_processing.py   # reads spotify_raw_data.csv -> writes spotify_clustered_3d.json
+python data_processing.py   # reads spotify_data/spotify_raw_data.csv -> writes ../public/spotify_clustered_3d.json
 ```
 
 Install deps with `pip install -r artistic-data-viz/requirements.txt`
@@ -68,10 +69,11 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
 - Drops `Movie`/`Comedy` genres, samples up to 45k rows, standardizes features.
 - `KMeans(n_clusters=10)` assigns a `cluster` to each track.
 - `UMAP(n_components=3)` reduces features to centered, scaled `x/y/z` coordinates.
-- Exports records to `spotify_clustered_3d.json` (consumed directly by `main.js`).
+- Exports records to `public/spotify_clustered_3d.json` (fetched at runtime by `main.js`).
 
 **Front-end** (`main.js`):
-- Imports the JSON at build time and builds one `THREE.InstancedMesh` of spheres.
+- `fetch`es the JSON from the site root at runtime (top-level await), then builds one
+  `THREE.InstancedMesh` of spheres. Kept out of the bundle to stay small.
 - Each instance is colored by its `cluster` (10-color spectral palette).
 - Per-frame animation: vertical sine "float" + color flicker.
 - Hover detection projects every point to screen space and picks the nearest within
@@ -81,12 +83,21 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
 
 ## Conventions & gotchas
 
-- The JSON is imported as an ES module (`import data from './spotify_data/...json'`),
-  so the pipeline must run **before** the dev server to regenerate data.
-- `spotify_data/` and `.env` are gitignored — keep generated data and secrets out
-  of git.
+- The JSON is loaded via `fetch(\`${import.meta.env.BASE_URL}spotify_clustered_3d.json\`)`
+  from `public/`, which Vite serves at the site root. It is committed (so deploys work);
+  the raw CSV in `spotify_data/` and `.env` are gitignored.
+- After re-running the pipeline, the fresh JSON lands in `public/` directly — no copy step.
 - **Secret hygiene:** the YouTube API key is read from `import.meta.env.VITE_YT_API_KEY`
   (set in `.env`, never committed). Do not inline keys in source. Note: the previously
   committed key in git history is compromised and should be rotated in the Google Cloud
   console.
 - Comments and console messages mix French and English; match the surrounding file.
+
+## Deployment (Vercel)
+
+Static Vite build. In the Vercel project settings:
+- **Root Directory:** `artistic-data-viz` (the app is in a subdirectory).
+- Framework preset **Vite** is auto-detected (build `npm run build`, output `dist`).
+- Add env var **`VITE_YT_API_KEY`**. Note `VITE_*` vars are inlined into the client
+  bundle, so the key is public regardless — restrict it by HTTP referrer (the
+  `*.vercel.app` domain) in the Google Cloud console instead of relying on secrecy.

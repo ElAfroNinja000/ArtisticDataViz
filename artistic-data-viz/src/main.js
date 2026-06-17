@@ -3,7 +3,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import { createBackground } from './background.js';
 import { initYoutubePlayer, playerReady } from './yt_player.js';
-import data from './spotify_data/spotify_clustered_3d.json';
+
+// Loaded at runtime from public/ (served at the site root) rather than bundled,
+// to keep the JS bundle small. BASE_URL handles non-root deploy paths.
+const data = await fetch(`${import.meta.env.BASE_URL}spotify_clustered_3d.json`).then((res) => res.json());
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
