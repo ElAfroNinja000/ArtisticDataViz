@@ -8,9 +8,22 @@
       canvas { display: block; }
       .label { font-family: sans-serif; white-space: nowrap; opacity: 0; transition: opacity 0.3s ease; }
       .label.visible { opacity: 1; }
+      #loading {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #151b26;
+        color: #fff;
+        font-family: sans-serif;
+        font-size: 18px;
+        z-index: 100;
+      }
     </style>
   </head>
   <body>
+    <div id="loading">Chargement des données...</div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

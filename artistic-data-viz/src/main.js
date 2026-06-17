@@ -4,9 +4,21 @@ import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRe
 import { createBackground } from './background.js';
 import { initYoutubePlayer, playerReady } from './yt_player.js';
 
-// Loaded at runtime from public/ (served at the site root) rather than bundled,
-// to keep the JS bundle small. BASE_URL handles non-root deploy paths.
-const data = await fetch(`${import.meta.env.BASE_URL}spotify_clustered_3d.json`).then((res) => res.json());
+const MAX_POINTS = 5000;
+const loadingEl = document.getElementById('loading');
+
+let rawData;
+try {
+  const res = await fetch(`${import.meta.env.BASE_URL}spotify_clustered_3d.json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  rawData = await res.json();
+} catch (err) {
+  if (loadingEl) loadingEl.textContent = `Erreur de chargement : ${err.message}`;
+  throw err;
+}
+
+const data = rawData.slice(0, MAX_POINTS);
+loadingEl?.remove();
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -14,6 +26,7 @@ camera.position.z = 65;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
 const labelRenderer = new CSS2DRenderer();
@@ -26,71 +39,34 @@ document.body.appendChild(labelRenderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-scene.add(new THREE.AmbientLight(0xffffff, 1));
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-dirLight.position.set(5, 10, 7);
-scene.add(dirLight);
-
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   labelRenderer.setSize(window.innerWidth, window.innerHeight);
 });
-
-initYoutubePlayer();
 
 const YT_API_KEY = import.meta.env.VITE_YT_API_KEY;
 if (!YT_API_KEY) {
   console.warn("VITE_YT_API_KEY manquante : copie .env.example vers .env et renseigne ta clé.");
 }
 
-window.addEventListener('click', async () => {
-  if (hoveredIndex !== null) {
-    const track = songData[hoveredIndex];
-    const query = encodeURIComponent(`${track.artist} ${track.title}`);
+initYoutubePlayer();
 
-    try {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${query}&key=${YT_API_KEY}`);
-      const data = await res.json();
-      const videoId = data.items[0]?.id?.videoId;
-
-      if (videoId) {
-        const player = await playerReady; // C’est ici que tu "définis" player
-        player.loadVideoById(videoId);
-      } else {
-        alert("Vidéo non trouvée.");
-      }
-    } catch (err) {
-      console.error("Erreur recherche YouTube :", err);
-    }
-  }
-});
-
-// Colors
 const clusterColors = [
-  0x9e0142,
-  0xd53e4f,
-  0xf46d43,
-  0xfdae61,
-  0xfee08b,
-  0xe6f598,
-  0xabdda4,
-  0x66c2a5,
-  0x3288bd,
-  0x5e4fa2
+  0x9e0142, 0xd53e4f, 0xf46d43, 0xfdae61, 0xfee08b,
+  0xe6f598, 0xabdda4, 0x66c2a5, 0x3288bd, 0x5e4fa2
 ];
 
-// InstancedMesh setup
-const geometry = new THREE.SphereGeometry(0.1, 8, 8);
-const material = new THREE.MeshStandardMaterial({ color: "0xffffff" });
+// MeshBasicMaterial: no lighting calculations, instance colors applied directly
+const geometry = new THREE.SphereGeometry(0.1, 6, 6);
+const material = new THREE.MeshBasicMaterial();
 const count = data.length;
 const instancedMesh = new THREE.InstancedMesh(geometry, material, count);
 scene.add(instancedMesh);
 
-// Prepare instance data
 const dummy = new THREE.Object3D();
-const colors = [];
 const songData = [];
 const baseColors = [];
 
@@ -117,80 +93,106 @@ data.forEach((track, i) => {
 instancedMesh.instanceMatrix.needsUpdate = true;
 instancedMesh.instanceColor.needsUpdate = true;
 
-// Hover logic (project to 2D and find closest)
 let hoveredIndex = null;
 let currentLabel = null;
-const mouse = new THREE.Vector2();
+const mouse = { x: -9999, y: -9999 };
+let lastMouseX = -9999;
+let lastMouseY = -9999;
 
-window.addEventListener('mousemove', (event) => {
-  mouse.x = event.clientX;
-  mouse.y = event.clientY;
+window.addEventListener('mousemove', (e) => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
 });
 
-// Projection util
+window.addEventListener('click', async () => {
+  if (hoveredIndex === null) return;
+  const track = songData[hoveredIndex];
+  const query = encodeURIComponent(`${track.artist} ${track.title}`);
+  try {
+    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${query}&key=${YT_API_KEY}`);
+    const json = await res.json();
+    const videoId = json.items[0]?.id?.videoId;
+    if (videoId) {
+      const player = await playerReady;
+      player.loadVideoById(videoId);
+    } else {
+      alert("Vidéo non trouvée.");
+    }
+  } catch (err) {
+    console.error("Erreur recherche YouTube :", err);
+  }
+});
+
+// Pre-allocated to avoid per-frame heap allocations
 const vector = new THREE.Vector3();
 const tempPos = new THREE.Vector3();
-const ray = new THREE.Raycaster();
+const flickerColor = new THREE.Color();
+const white = new THREE.Color(0xffffff);
 
 const animate = () => {
   requestAnimationFrame(animate);
   controls.update();
 
-  // Project all points & find closest
-  let closestIndex = null;
-  let minDist = 20;
+  // Hover: skip projection pass if mouse hasn't moved
+  if (mouse.x !== lastMouseX || mouse.y !== lastMouseY) {
+    lastMouseX = mouse.x;
+    lastMouseY = mouse.y;
 
-  for (let i = 0; i < songData.length; i++) {
-    tempPos.set(songData[i].x, songData[i].y, songData[i].z);
-    vector.copy(tempPos).project(camera);
+    let closestIndex = null;
+    let minDistSq = 20 * 20;
 
-    const screenX = (vector.x + 1) / 2 * window.innerWidth;
-    const screenY = (-vector.y + 1) / 2 * window.innerHeight;
+    for (let i = 0; i < count; i++) {
+      tempPos.set(songData[i].x, songData[i].y, songData[i].z);
+      vector.copy(tempPos).project(camera);
 
-    const dx = screenX - mouse.x;
-    const dy = screenY - mouse.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+      const screenX = (vector.x + 1) / 2 * window.innerWidth;
+      const screenY = (-vector.y + 1) / 2 * window.innerHeight;
+      const dx = screenX - mouse.x;
+      const dy = screenY - mouse.y;
+      const distSq = dx * dx + dy * dy;
 
-    if (dist < minDist) {
-      minDist = dist;
-      closestIndex = i;
-    }
-  }
-
-  if (closestIndex !== null && closestIndex !== hoveredIndex) {
-    // Remove old label
-    if (currentLabel) {
-      scene.remove(currentLabel);
-      currentLabel = null;
+      if (distSq < minDistSq) {
+        minDistSq = distSq;
+        closestIndex = i;
+      }
     }
 
-    const track = songData[closestIndex];
-    const div = document.createElement('div');
-    div.className = 'label visible';
-    div.textContent = `${track.artist} - ${track.title}, ${track.genre}`;
-    div.style.color = '#fff';
-    div.style.fontSize = '14px';
-    div.style.padding = '4px 8px';
-    div.style.background = 'rgba(0,0,0,0.7)';
-    div.style.borderRadius = '8px';
-
-    currentLabel = new CSS2DObject(div);
-    currentLabel.position.set(track.x, track.y + 0.15, track.z);
-    scene.add(currentLabel);
-    hoveredIndex = closestIndex;
-  } else if (closestIndex === null && currentLabel) {
-    if (currentLabel) {
-      const element = currentLabel.element;
-      element.classList.remove('visible');
-      setTimeout(() => {
+    if (closestIndex !== null && closestIndex !== hoveredIndex) {
+      if (currentLabel) {
+        currentLabel.element.remove();
         scene.remove(currentLabel);
         currentLabel = null;
+      }
+
+      const track = songData[closestIndex];
+      const div = document.createElement('div');
+      div.className = 'label visible';
+      div.textContent = `${track.artist} - ${track.title}, ${track.genre}`;
+      div.style.color = '#fff';
+      div.style.fontSize = '14px';
+      div.style.padding = '4px 8px';
+      div.style.background = 'rgba(0,0,0,0.7)';
+      div.style.borderRadius = '8px';
+
+      currentLabel = new CSS2DObject(div);
+      currentLabel.position.set(track.x, track.y + 0.15, track.z);
+      scene.add(currentLabel);
+      hoveredIndex = closestIndex;
+    } else if (closestIndex === null && currentLabel) {
+      // Capture ref before async timeout so reassignment doesn't corrupt it
+      const labelToRemove = currentLabel;
+      currentLabel = null;
+      hoveredIndex = null;
+      labelToRemove.element.classList.remove('visible');
+      setTimeout(() => {
+        labelToRemove.element.remove();
+        scene.remove(labelToRemove);
       }, 300);
     }
-    hoveredIndex = null;
   }
 
   const time = performance.now() * 0.001;
+
   for (let i = 0; i < count; i++) {
     dummy.position.set(songData[i].x, songData[i].y + Math.sin(time + i) * 0.05, songData[i].z);
     dummy.updateMatrix();
@@ -199,11 +201,8 @@ const animate = () => {
   instancedMesh.instanceMatrix.needsUpdate = true;
 
   for (let i = 0; i < count; i++) {
-    const hsl = {};
-    baseColors[i].getHSL(hsl);
-    hsl.l = 0.4 + 0.2 * Math.sin(time * 3 + i);
-    const flickered = baseColors[i].clone().lerp(new THREE.Color(0xffffff), 0.1 * Math.sin(time * 4 + i));
-    instancedMesh.setColorAt(i, flickered);
+    flickerColor.copy(baseColors[i]).lerp(white, 0.1 * Math.sin(time * 4 + i));
+    instancedMesh.setColorAt(i, flickerColor);
   }
   instancedMesh.instanceColor.needsUpdate = true;
 

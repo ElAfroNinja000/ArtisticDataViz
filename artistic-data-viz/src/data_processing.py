@@ -10,6 +10,9 @@ columns_to_keep = ['track_id', 'artist_name', 'track_name', 'genre',
 features = ['acousticness', 'danceability', 'energy', 'instrumentalness',
             'liveness', 'speechiness', 'valence', 'tempo']
 
+# Rows the front-end renders. Must match MAX_POINTS in src/main.js.
+FRONTEND_POINTS = 5000
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message="n_jobs value 1 overridden*")
 
@@ -48,9 +51,11 @@ def add_3d_coords(df):
     df["y"] = coords_centered[:, 1] * scale
     df["z"] = coords_centered[:, 2] * scale
 
-    # Written to public/ so the Vite front-end can fetch it at runtime.
-    df.to_json("../public/spotify_clustered_3d.json", orient="records", force_ascii=False)
-    print("✅ Final json with 3D coordinates successfully exported.")
+    # Full dataset kept as the canonical archive (committed, never served).
+    df.to_json("../data/spotify_clustered_3d.full.json", orient="records", force_ascii=False)
+    # Lightweight subset the Vite front-end actually fetches at runtime.
+    df.head(FRONTEND_POINTS).to_json("../public/spotify_clustered_3d.json", orient="records", force_ascii=False)
+    print(f"✅ Exported {len(df)} rows (archive) + {min(FRONTEND_POINTS, len(df))} rows (front-end).")
 
 def process_data():
     df = clean_data()

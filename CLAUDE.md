@@ -22,12 +22,14 @@ artistic-data-viz/
   index.html                  # Vite entry point
   package.json                # Vite + three deps
   public/
-    spotify_clustered_3d.json # generated data, served at site root, fetched at runtime
+    spotify_clustered_3d.json # 5k-row subset served at site root, fetched at runtime
+  data/
+    spotify_clustered_3d.full.json # full 45k dataset, committed archive (never served)
   src/
     main.js                   # Three.js scene: InstancedMesh of tracks, hover, click->YouTube
     background.js             # Shader gradient background (separate ortho scene)
     yt_player.js             # YouTube IFrame player + playerReady promise
-    data_processing.py       # Python pipeline: clean -> KMeans -> UMAP -> JSON
+    data_processing.py       # Python pipeline: clean -> KMeans -> UMAP -> JSON (full + subset)
     style.css
     spotify_data/            # (gitignored) raw input CSV only
       spotify_raw_data.csv
@@ -55,8 +57,12 @@ Python data pipeline (run from `artistic-data-viz/src/` so the relative
 
 ```bash
 cd artistic-data-viz/src
-python data_processing.py   # reads spotify_data/spotify_raw_data.csv -> writes ../public/spotify_clustered_3d.json
+python data_processing.py   # CSV -> ../data/...full.json (45k archive) + ../public/...json (5k served)
 ```
+
+The pipeline writes two files: the full dataset to `data/` (canonical archive) and a
+`FRONTEND_POINTS`-row subset to `public/` (what the app fetches). Keep `FRONTEND_POINTS`
+in `data_processing.py` in sync with `MAX_POINTS` in `src/main.js`.
 
 Install deps with `pip install -r artistic-data-viz/requirements.txt`
 (`pandas`, `scikit-learn`, `umap-learn`).
@@ -69,11 +75,16 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
 - Drops `Movie`/`Comedy` genres, samples up to 45k rows, standardizes features.
 - `KMeans(n_clusters=10)` assigns a `cluster` to each track.
 - `UMAP(n_components=3)` reduces features to centered, scaled `x/y/z` coordinates.
-- Exports records to `public/spotify_clustered_3d.json` (fetched at runtime by `main.js`).
+- Exports the full set to `data/...full.json` (archive) and a 5k subset to
+  `public/spotify_clustered_3d.json` (fetched at runtime by `main.js`).
 
 **Front-end** (`main.js`):
-- `fetch`es the JSON from the site root at runtime (top-level await), then builds one
-  `THREE.InstancedMesh` of spheres. Kept out of the bundle to stay small.
+- `fetch`es the JSON from the site root at runtime (top-level await), shows a loading
+  overlay until it resolves (or an error message on failure), slices to `MAX_POINTS`
+  (5000) as a safety net, then builds one `THREE.InstancedMesh` of spheres. Kept out of
+  the bundle to stay small.
+- Uses `MeshBasicMaterial` (no lighting) and per-frame buffers are reused (no per-frame
+  allocations); the hover projection pass is skipped when the mouse hasn't moved.
 - Each instance is colored by its `cluster` (10-color spectral palette).
 - Per-frame animation: vertical sine "float" + color flicker.
 - Hover detection projects every point to screen space and picks the nearest within
@@ -84,9 +95,11 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
 ## Conventions & gotchas
 
 - The JSON is loaded via `fetch(\`${import.meta.env.BASE_URL}spotify_clustered_3d.json\`)`
-  from `public/`, which Vite serves at the site root. It is committed (so deploys work);
+  from `public/`, which Vite serves at the site root. Both the `public/` subset and the
+  `data/` archive are committed (so deploys work and the full dataset is preserved); only
   the raw CSV in `spotify_data/` and `.env` are gitignored.
-- After re-running the pipeline, the fresh JSON lands in `public/` directly — no copy step.
+- The full dataset (`data/...full.json`) is the canonical artifact — never delete it to
+  "save space"; the served `public/` file is a regenerable 5k subset of it.
 - **Secret hygiene:** the YouTube API key is read from `import.meta.env.VITE_YT_API_KEY`
   (set in `.env`, never committed). Do not inline keys in source. Note: the previously
   committed key in git history is compromised and should be rotated in the Google Cloud
