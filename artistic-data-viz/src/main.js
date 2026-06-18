@@ -93,25 +93,77 @@ data.forEach((track, i) => {
 instancedMesh.instanceMatrix.needsUpdate = true;
 instancedMesh.instanceColor.needsUpdate = true;
 
-let hoveredIndex = null;
+// Pre-allocated scratch objects (no per-frame / per-pick heap allocations)
+const vector = new THREE.Vector3();
+const tempPos = new THREE.Vector3();
+const flickerColor = new THREE.Color();
+const white = new THREE.Color(0xffffff);
+
+// --- Picking ---
+// Spheres are tiny (r=0.1), so we pick the nearest one in screen space within a
+// pixel radius rather than requiring an exact ray hit — far more forgiving.
+function pickNearest(clientX, clientY, radiusPx) {
+  let closest = null;
+  let minDistSq = radiusPx * radiusPx;
+  for (let i = 0; i < count; i++) {
+    tempPos.set(songData[i].x, songData[i].y, songData[i].z);
+    vector.copy(tempPos).project(camera);
+    if (vector.z > 1) continue; // behind the camera / beyond far plane
+    const screenX = (vector.x + 1) / 2 * window.innerWidth;
+    const screenY = (-vector.y + 1) / 2 * window.innerHeight;
+    const dx = screenX - clientX;
+    const dy = screenY - clientY;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < minDistSq) {
+      minDistSq = distSq;
+      closest = i;
+    }
+  }
+  return closest;
+}
+
+// --- Label ---
+let labelIndex = null;
 let currentLabel = null;
-const mouse = { x: -9999, y: -9999 };
-let lastMouseX = -9999;
-let lastMouseY = -9999;
 
-window.addEventListener('mousemove', (e) => {
-  mouse.x = e.clientX;
-  mouse.y = e.clientY;
-});
+function showLabel(index) {
+  if (index === labelIndex) return;
+  removeLabel(true);
+  const track = songData[index];
+  const div = document.createElement('div');
+  div.className = 'label visible';
+  div.textContent = `${track.artist} - ${track.title}, ${track.genre}`;
+  currentLabel = new CSS2DObject(div);
+  currentLabel.position.set(track.x, track.y + 0.15, track.z);
+  scene.add(currentLabel);
+  labelIndex = index;
+}
 
-window.addEventListener('click', async () => {
-  if (hoveredIndex === null) return;
-  const track = songData[hoveredIndex];
+function removeLabel(immediate = false) {
+  if (!currentLabel) return;
+  const label = currentLabel;
+  currentLabel = null;
+  labelIndex = null;
+  if (immediate) {
+    label.element.remove();
+    scene.remove(label);
+    return;
+  }
+  label.element.classList.remove('visible');
+  setTimeout(() => {
+    label.element.remove();
+    scene.remove(label);
+  }, 300);
+}
+
+// --- Playback ---
+async function playTrack(index) {
+  const track = songData[index];
   const query = encodeURIComponent(`${track.artist} ${track.title}`);
   try {
     const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${query}&key=${YT_API_KEY}`);
     const json = await res.json();
-    const videoId = json.items[0]?.id?.videoId;
+    const videoId = json.items?.[0]?.id?.videoId;
     if (videoId) {
       const player = await playerReady;
       player.loadVideoById(videoId);
@@ -121,75 +173,42 @@ window.addEventListener('click', async () => {
   } catch (err) {
     console.error("Erreur recherche YouTube :", err);
   }
+}
+
+// --- Pointer input (mouse + touch + pen, unified) ---
+// A press that travels more than this is a camera rotation, not a selection.
+const DRAG_THRESHOLD_PX = 6;
+const canvas = renderer.domElement;
+let pressX = 0;
+let pressY = 0;
+
+canvas.addEventListener('pointerdown', (e) => {
+  pressX = e.clientX;
+  pressY = e.clientY;
 });
 
-// Pre-allocated to avoid per-frame heap allocations
-const vector = new THREE.Vector3();
-const tempPos = new THREE.Vector3();
-const flickerColor = new THREE.Color();
-const white = new THREE.Color(0xffffff);
+canvas.addEventListener('pointerup', (e) => {
+  // Ignore the end of a drag (rotation); only a genuine tap/click selects.
+  if (Math.hypot(e.clientX - pressX, e.clientY - pressY) > DRAG_THRESHOLD_PX) return;
+  // Fingers are less precise than a cursor: give touch a larger hit radius.
+  const radiusPx = e.pointerType === 'touch' ? 32 : 20;
+  const index = pickNearest(e.clientX, e.clientY, radiusPx);
+  if (index === null) return;
+  showLabel(index);
+  playTrack(index);
+});
+
+// Hover labels apply to a mouse only, and only while no button is pressed.
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType !== 'mouse' || e.buttons !== 0) return;
+  const index = pickNearest(e.clientX, e.clientY, 20);
+  if (index === null) removeLabel();
+  else showLabel(index);
+});
 
 const animate = () => {
   requestAnimationFrame(animate);
   controls.update();
-
-  // Hover: skip projection pass if mouse hasn't moved
-  if (mouse.x !== lastMouseX || mouse.y !== lastMouseY) {
-    lastMouseX = mouse.x;
-    lastMouseY = mouse.y;
-
-    let closestIndex = null;
-    let minDistSq = 20 * 20;
-
-    for (let i = 0; i < count; i++) {
-      tempPos.set(songData[i].x, songData[i].y, songData[i].z);
-      vector.copy(tempPos).project(camera);
-
-      const screenX = (vector.x + 1) / 2 * window.innerWidth;
-      const screenY = (-vector.y + 1) / 2 * window.innerHeight;
-      const dx = screenX - mouse.x;
-      const dy = screenY - mouse.y;
-      const distSq = dx * dx + dy * dy;
-
-      if (distSq < minDistSq) {
-        minDistSq = distSq;
-        closestIndex = i;
-      }
-    }
-
-    if (closestIndex !== null && closestIndex !== hoveredIndex) {
-      if (currentLabel) {
-        currentLabel.element.remove();
-        scene.remove(currentLabel);
-        currentLabel = null;
-      }
-
-      const track = songData[closestIndex];
-      const div = document.createElement('div');
-      div.className = 'label visible';
-      div.textContent = `${track.artist} - ${track.title}, ${track.genre}`;
-      div.style.color = '#fff';
-      div.style.fontSize = '14px';
-      div.style.padding = '4px 8px';
-      div.style.background = 'rgba(0,0,0,0.7)';
-      div.style.borderRadius = '8px';
-
-      currentLabel = new CSS2DObject(div);
-      currentLabel.position.set(track.x, track.y + 0.15, track.z);
-      scene.add(currentLabel);
-      hoveredIndex = closestIndex;
-    } else if (closestIndex === null && currentLabel) {
-      // Capture ref before async timeout so reassignment doesn't corrupt it
-      const labelToRemove = currentLabel;
-      currentLabel = null;
-      hoveredIndex = null;
-      labelToRemove.element.classList.remove('visible');
-      setTimeout(() => {
-        labelToRemove.element.remove();
-        scene.remove(labelToRemove);
-      }, 300);
-    }
-  }
 
   const time = performance.now() * 0.001;
 
