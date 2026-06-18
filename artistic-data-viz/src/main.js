@@ -38,6 +38,9 @@ document.body.appendChild(labelRenderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
+// Keep the camera within range of the cloud (which spans roughly ±50 units).
+controls.minDistance = 15;
+controls.maxDistance = 150;
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -214,13 +217,15 @@ const animate = () => {
 
   for (let i = 0; i < count; i++) {
     dummy.position.set(songData[i].x, songData[i].y + Math.sin(time + i) * 0.05, songData[i].z);
+    dummy.scale.setScalar(i === labelIndex ? 2.6 : 1); // enlarge the active sphere
     dummy.updateMatrix();
     instancedMesh.setMatrixAt(i, dummy.matrix);
   }
   instancedMesh.instanceMatrix.needsUpdate = true;
 
   for (let i = 0; i < count; i++) {
-    flickerColor.copy(baseColors[i]).lerp(white, 0.1 * Math.sin(time * 4 + i));
+    if (i === labelIndex) flickerColor.copy(white); // highlight the active sphere
+    else flickerColor.copy(baseColors[i]).lerp(white, 0.1 * Math.sin(time * 4 + i));
     instancedMesh.setColorAt(i, flickerColor);
   }
   instancedMesh.instanceColor.needsUpdate = true;

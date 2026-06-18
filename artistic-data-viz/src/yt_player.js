@@ -5,15 +5,20 @@ export const playerReady = new Promise((resolve) => {
 });
 
 export function initYoutubePlayer() {
-  const playerContainer = document.createElement('div');
-  playerContainer.id = 'youtube-player';
-  playerContainer.style.position = 'absolute';
-  playerContainer.style.bottom = '10px';
-  playerContainer.style.left = '10px';
-  playerContainer.style.width = '360px';
-  playerContainer.style.height = '200px';
-  playerContainer.style.zIndex = '10';
-  document.body.appendChild(playerContainer);
+  // Wrapper porte le style responsive ; YT.Player remplace la div interne par
+  // l'iframe (à 100% du wrapper), donc le style ne doit pas vivre sur la div remplacée.
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.bottom = '10px';
+  wrapper.style.left = '10px';
+  wrapper.style.width = 'min(360px, 90vw)';
+  wrapper.style.aspectRatio = '16 / 9';
+  wrapper.style.zIndex = '10';
+
+  const inner = document.createElement('div');
+  inner.id = 'youtube-player';
+  wrapper.appendChild(inner);
+  document.body.appendChild(wrapper);
 
   const tag = document.createElement('script');
   tag.src = "https://www.youtube.com/iframe_api";
@@ -21,8 +26,8 @@ export function initYoutubePlayer() {
 
   window.onYouTubeIframeAPIReady = () => {
     const player = new YT.Player('youtube-player', {
-      height: '200',
-      width: '360',
+      height: '100%',
+      width: '100%',
       videoId: '',
       events: {
         onReady: () => {

@@ -10,7 +10,9 @@
       canvas { display: block; touch-action: none; }
       .label {
         font-family: sans-serif;
-        white-space: nowrap;
+        /* Wrap within a cap instead of overflowing the viewport edge on mobile. */
+        max-width: min(220px, 80vw);
+        text-align: center;
         color: #fff;
         font-size: 14px;
         padding: 4px 8px;
