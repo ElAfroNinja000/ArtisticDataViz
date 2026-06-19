@@ -183,27 +183,28 @@ nowPlaying.innerHTML =
     '<span class="np-genre"></span>' +
   '</div>' +
   '<div class="np-buttons">' +
-    '<button class="np-mute" type="button" title="Couper / activer le son">🔊</button>' +
+    '<button class="np-playpause" type="button" title="Lecture / Pause">⏸</button>' +
     '<button class="np-copy" type="button">⧉ Lien</button>' +
   '</div>';
 document.body.appendChild(nowPlaying);
 const npTitle = nowPlaying.querySelector('.np-title');
 const npArtist = nowPlaying.querySelector('.np-artist');
 const npGenre = nowPlaying.querySelector('.np-genre');
-const npMute = nowPlaying.querySelector('.np-mute');
+const npPlayPause = nowPlaying.querySelector('.np-playpause');
 const npCopy = nowPlaying.querySelector('.np-copy');
 
 let ytPlayer = null;
 playerReady.then((p) => { ytPlayer = p; });
 
-npMute.addEventListener('click', () => {
+npPlayPause.addEventListener('click', () => {
   if (!ytPlayer) return;
-  if (ytPlayer.isMuted()) {
-    ytPlayer.unMute();
-    npMute.textContent = '🔊';
+  // 1 === YT.PlayerState.PLAYING
+  if (ytPlayer.getPlayerState() === 1) {
+    ytPlayer.pauseVideo();
+    npPlayPause.textContent = '▶';
   } else {
-    ytPlayer.mute();
-    npMute.textContent = '🔇';
+    ytPlayer.playVideo();
+    npPlayPause.textContent = '⏸';
   }
 });
 
@@ -223,6 +224,7 @@ function showNowPlaying(track, videoId) {
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
   npGenre.textContent = track.genre;
+  npPlayPause.textContent = '⏸'; // a freshly loaded track auto-plays
   nowPlaying.classList.add('visible');
 }
 
@@ -290,6 +292,7 @@ let autoMode = true;
 const chip = document.createElement('div');
 chip.className = 'ui-pill';
 chip.id = 'sphere-chip';
+chip.textContent = '⚙ Settings'; // static when collapsed; the capacity % lives in the panel
 document.body.appendChild(chip);
 
 const panel = document.createElement('div');
@@ -308,7 +311,6 @@ chip.addEventListener('click', () => { panel.classList.add('open'); chip.style.d
 panel.querySelector('.sp-close').addEventListener('click', () => { panel.classList.remove('open'); chip.style.display = ''; });
 
 function refreshLabels() {
-  chip.textContent = `◉ ${pct(currentCount)}% Capacity`;
   spCount.textContent = `${pct(currentCount)}%`;
 }
 
