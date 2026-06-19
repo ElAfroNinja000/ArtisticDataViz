@@ -2,6 +2,15 @@
 
 Guidance for Claude Code when working in this repository.
 
+## Working agreement (directives from the project owner)
+
+- **Stay strictly in scope.** Implement only what was explicitly requested. If a task
+  seems to require any change outside the agreed scope, **stop and flag it for approval
+  first** — do not make out-of-scope changes on your own initiative.
+- **Never deploy.** The owner handles all deployments. Do **not** push to `master`
+  (it auto-deploys to Vercel) and never trigger a redeploy by any means. Commit work to
+  a feature branch and let the owner deploy on their own schedule.
+
 ## Project overview
 
 **ArtisticDataViz** is an interactive, artistic 3D visualization of Spotify track
@@ -114,3 +123,7 @@ Static Vite build. In the Vercel project settings:
 - Add env var **`VITE_YT_API_KEY`**. Note `VITE_*` vars are inlined into the client
   bundle, so the key is public regardless — restrict it by HTTP referrer (the
   `*.vercel.app` domain) in the Google Cloud console instead of relying on secrecy.
+- **Gotcha:** `VITE_*` vars are inlined **at build time**. If `VITE_YT_API_KEY` is
+  missing (or added after the live build), the deployed bundle ships `key=undefined`,
+  YouTube returns `403`, and every click shows "Vidéo non trouvée". Setting the var
+  requires a **fresh redeploy** to take effect.
