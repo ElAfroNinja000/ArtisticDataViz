@@ -10,8 +10,9 @@ columns_to_keep = ['track_id', 'artist_name', 'track_name', 'genre',
 features = ['acousticness', 'danceability', 'energy', 'instrumentalness',
             'liveness', 'speechiness', 'valence', 'tempo']
 
-# Rows the front-end renders. Must match MAX_POINTS in src/main.js.
-FRONTEND_POINTS = 5000
+# Rows served to the front-end (it caps how many actually render at runtime via a
+# UI slider + adaptive FPS governor). Currently the full set.
+FRONTEND_POINTS = 45000
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message="n_jobs value 1 overridden*")
