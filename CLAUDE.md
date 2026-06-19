@@ -31,9 +31,9 @@ artistic-data-viz/
   index.html                  # Vite entry point
   package.json                # Vite + three deps
   public/
-    spotify_clustered_3d.json # 5k-row subset served at site root, fetched at runtime
+    spotify_clustered_3d.json # full 45k dataset served at site root, fetched at runtime
   data/
-    spotify_clustered_3d.full.json # full 45k dataset, committed archive (never served)
+    spotify_clustered_3d.full.json # full 45k dataset, committed archive
   src/
     main.js                   # Three.js scene: InstancedMesh of tracks, hover, click->YouTube
     background.js             # Shader gradient background (separate ortho scene)
@@ -66,12 +66,13 @@ Python data pipeline (run from `artistic-data-viz/src/` so the relative
 
 ```bash
 cd artistic-data-viz/src
-python data_processing.py   # CSV -> ../data/...full.json (45k archive) + ../public/...json (5k served)
+python data_processing.py   # CSV -> ../data/...full.json (45k archive) + ../public/...json (served)
 ```
 
 The pipeline writes two files: the full dataset to `data/` (canonical archive) and a
-`FRONTEND_POINTS`-row subset to `public/` (what the app fetches). Keep `FRONTEND_POINTS`
-in `data_processing.py` in sync with `MAX_POINTS` in `src/main.js`.
+`FRONTEND_POINTS`-row subset to `public/` (what the app fetches). `FRONTEND_POINTS` is
+currently `45000`, so `public/` holds the whole set; the front-end then caps how many
+of those actually render via a UI slider + adaptive FPS governor (no fixed `MAX_POINTS`).
 
 Install deps with `pip install -r artistic-data-viz/requirements.txt`
 (`pandas`, `scikit-learn`, `umap-learn`).
@@ -84,22 +85,29 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
 - Drops `Movie`/`Comedy` genres, samples up to 45k rows, standardizes features.
 - `KMeans(n_clusters=10)` assigns a `cluster` to each track.
 - `UMAP(n_components=3)` reduces features to centered, scaled `x/y/z` coordinates.
-- Exports the full set to `data/...full.json` (archive) and a 5k subset to
-  `public/spotify_clustered_3d.json` (fetched at runtime by `main.js`).
+- Exports the full set to `data/...full.json` (archive) and to
+  `public/spotify_clustered_3d.json` (fetched at runtime by `main.js`). With
+  `FRONTEND_POINTS = 45000` the two files are currently identical.
 
 **Front-end** (`main.js`):
-- `fetch`es the JSON from the site root at runtime (top-level await), shows a loading
-  overlay until it resolves (or an error message on failure), slices to `MAX_POINTS`
-  (5000) as a safety net, then builds one `THREE.InstancedMesh` of spheres. Kept out of
-  the bundle to stay small.
-- Uses `MeshBasicMaterial` (no lighting) and per-frame buffers are reused (no per-frame
-  allocations); the hover projection pass is skipped when the mouse hasn't moved.
-- Each instance is colored by its `cluster` (10-color spectral palette).
-- Per-frame animation: vertical sine "float" + color flicker.
-- Hover detection projects every point to screen space and picks the nearest within
-  a pixel threshold, then shows a `CSS2DObject` label (`artist - title, genre`).
-- Click queries the YouTube Data API for the hovered track and loads it into the
-  embedded player (`yt_player.js`).
+- `fetch`es the JSON from the site root at runtime (top-level await), with a loading
+  overlay (and an error message on failure). Kept out of the bundle.
+- Builds one `THREE.InstancedMesh` allocated for the **full** dataset; positions and
+  per-`cluster` colors (10-color spectral palette) are set **once**.
+- **Animation runs on the GPU**: `MeshBasicMaterial.onBeforeCompile` injects a `uTime`
+  uniform driving the vertical float + brightness flicker, and a `uSelected` uniform that
+  scales/whitens the active sphere. The render loop only updates `uTime` — flat per-frame
+  CPU cost regardless of how many spheres show. (This is what makes 45k viable; the old
+  per-frame CPU rebuild capped out around 5–8k.)
+- **How many render is user/adaptive-controlled**: `instancedMesh.count` is driven by a
+  bottom-right slider (chip ⇄ panel) plus an **Auto FPS governor** that raises/lowers the
+  cap to keep the framerate smooth on any device (dead band [50,57] fps).
+- **Picking** is a depth-aware `Raycaster` against the InstancedMesh (front-most wins,
+  occlusion handled). Hover raycast runs at most once per frame; touch probes a few
+  offsets around the tap for a forgiving hit. The tooltip follows the cursor (upper-right).
+- Click/tap queries the YouTube Data API and plays the track in a **hidden** iframe
+  (`yt_player.js`); a bottom-left "now playing" banner shows artist/title + a button that
+  copies the `https://youtu.be/<id>` link.
 
 ## Conventions & gotchas
 
@@ -108,7 +116,7 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
   `data/` archive are committed (so deploys work and the full dataset is preserved); only
   the raw CSV in `spotify_data/` and `.env` are gitignored.
 - The full dataset (`data/...full.json`) is the canonical artifact — never delete it to
-  "save space"; the served `public/` file is a regenerable 5k subset of it.
+  "save space"; the served `public/` file is regenerable from it (currently the full set).
 - **Secret hygiene:** the YouTube API key is read from `import.meta.env.VITE_YT_API_KEY`
   (set in `.env`, never committed). Do not inline keys in source. Note: the previously
   committed key in git history is compromised and should be rotated in the Google Cloud

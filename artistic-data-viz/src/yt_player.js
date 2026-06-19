@@ -5,15 +5,18 @@ export const playerReady = new Promise((resolve) => {
 });
 
 export function initYoutubePlayer() {
-  // Wrapper porte le style responsive ; YT.Player remplace la div interne par
-  // l'iframe (à 100% du wrapper), donc le style ne doit pas vivre sur la div remplacée.
+  // Le lecteur joue l'audio mais reste invisible : on affiche à la place un bandeau
+  // "en lecture" custom (cf. main.js). On garde l'iframe rendue (1x1, opacity 0) plutôt
+  // que display:none, car masquer complètement couperait l'audio sur certains navigateurs.
   const wrapper = document.createElement('div');
-  wrapper.style.position = 'absolute';
-  wrapper.style.bottom = '10px';
-  wrapper.style.left = '10px';
-  wrapper.style.width = 'min(360px, 90vw)';
-  wrapper.style.aspectRatio = '16 / 9';
-  wrapper.style.zIndex = '10';
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '0';
+  wrapper.style.bottom = '0';
+  wrapper.style.width = '1px';
+  wrapper.style.height = '1px';
+  wrapper.style.opacity = '0';
+  wrapper.style.pointerEvents = 'none';
+  wrapper.style.zIndex = '-1';
 
   const inner = document.createElement('div');
   inner.id = 'youtube-player';

@@ -30,18 +30,123 @@
         position: fixed;
         inset: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 18px;
         background: #151b26;
         color: #fff;
         font-family: sans-serif;
         font-size: 18px;
         z-index: 100;
       }
+      .spinner {
+        width: 38px;
+        height: 38px;
+        border: 4px solid rgba(255, 255, 255, 0.22);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* Shared look for the on-screen control pills */
+      .ui-pill {
+        position: fixed;
+        z-index: 10;
+        font-family: sans-serif;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.72);
+        border-radius: 12px;
+        backdrop-filter: blur(4px);
+      }
+
+      /* "Now playing" banner (bottom-left, replaces the visible YouTube player) */
+      #nowplaying {
+        left: 12px;
+        bottom: 12px;
+        max-width: min(340px, 78vw);
+        padding: 8px 10px 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+        pointer-events: none;
+      }
+      #nowplaying.visible { opacity: 1; transform: none; pointer-events: auto; }
+      #nowplaying .np-text { font-size: 13px; line-height: 1.35; min-width: 0; }
+      #nowplaying .np-text > span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #nowplaying .np-now {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.55;
+      }
+      #nowplaying .np-title { font-weight: 600; }
+      #nowplaying .np-genre { font-size: 11px; opacity: 0.7; }
+      #nowplaying .np-buttons { flex: none; display: flex; flex-direction: column; gap: 5px; }
+      #nowplaying .np-buttons button {
+        cursor: pointer;
+        border: none;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        border-radius: 7px;
+        padding: 5px 9px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      #nowplaying .np-buttons button:hover { background: rgba(255, 255, 255, 0.28); }
+      #nowplaying .np-playpause { font-size: 14px; line-height: 1; }
+
+      /* Sphere-count control (bottom-right): a chip that expands into a panel */
+      #sphere-chip {
+        right: 12px;
+        bottom: 12px;
+        padding: 8px 14px;
+        font-size: 13px;
+        cursor: pointer;
+        user-select: none;
+        border-radius: 999px;
+      }
+      #sphere-panel {
+        right: 12px;
+        bottom: 12px;
+        width: min(420px, 92vw);
+        padding: 12px 14px;
+        display: none;
+        flex-direction: column;
+        gap: 9px;
+      }
+      #sphere-panel.open { display: flex; }
+      #sphere-panel .sp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+      }
+      #sphere-panel input[type="range"] { width: 100%; accent-color: #66c2a5; }
+      #sphere-panel .sp-auto { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+      #sphere-panel .sp-close {
+        cursor: pointer;
+        border: none;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 13px;
+      }
+      #sphere-panel input:disabled { opacity: 0.4; }
     </style>
   </head>
   <body>
-    <div id="loading">Chargement des données...</div>
+    <div id="loading"><div class="load-text">Chargement des données...</div><div class="spinner"></div></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
