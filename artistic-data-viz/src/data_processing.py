@@ -14,6 +14,10 @@ features = ['acousticness', 'danceability', 'energy', 'instrumentalness',
 # UI slider + adaptive FPS governor). Currently the full set.
 FRONTEND_POINTS = 45000
 
+# Only the columns the front-end actually reads — the served JSON drops track_id and the
+# 8 audio features (~60% of the payload) that main.js never uses, to keep the download light.
+FRONTEND_COLS = ['x', 'y', 'z', 'cluster', 'artist_name', 'track_name', 'genre']
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message="n_jobs value 1 overridden*")
 
@@ -52,11 +56,13 @@ def add_3d_coords(df):
     df["y"] = coords_centered[:, 1] * scale
     df["z"] = coords_centered[:, 2] * scale
 
-    # Full dataset kept as the canonical archive (committed, never served).
+    # Full dataset (all columns, full precision) kept as the canonical archive.
     df.to_json("../data/spotify_clustered_3d.full.json", orient="records", force_ascii=False)
-    # Lightweight subset the Vite front-end actually fetches at runtime.
-    df.head(FRONTEND_POINTS).to_json("../public/spotify_clustered_3d.json", orient="records", force_ascii=False)
-    print(f"✅ Exported {len(df)} rows (archive) + {min(FRONTEND_POINTS, len(df))} rows (front-end).")
+    # What the Vite front-end fetches: only the used columns, coords rounded to 3 decimals.
+    served = df.head(FRONTEND_POINTS)[FRONTEND_COLS].copy()
+    served[['x', 'y', 'z']] = served[['x', 'y', 'z']].round(3)
+    served.to_json("../public/spotify_clustered_3d.json", orient="records", force_ascii=False)
+    print(f"✅ Exported {len(df)} rows (archive) + {len(served)} rows (front-end).")
 
 def process_data():
     df = clean_data()
