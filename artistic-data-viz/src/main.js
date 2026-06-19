@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import { createBackground } from './background.js';
 import { initYoutubePlayer, playerReady } from './yt_player.js';
 
@@ -29,13 +28,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-const labelRenderer = new CSS2DRenderer();
-labelRenderer.setSize(window.innerWidth, window.innerHeight);
-labelRenderer.domElement.style.position = 'absolute';
-labelRenderer.domElement.style.top = '0';
-labelRenderer.domElement.style.pointerEvents = 'none';
-document.body.appendChild(labelRenderer.domElement);
-
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 // Keep the camera within range of the cloud (which spans roughly ±50 units).
@@ -47,7 +39,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  labelRenderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 const YT_API_KEY = import.meta.env.VITE_YT_API_KEY;
@@ -96,67 +87,71 @@ data.forEach((track, i) => {
 instancedMesh.instanceMatrix.needsUpdate = true;
 instancedMesh.instanceColor.needsUpdate = true;
 
-// Pre-allocated scratch objects (no per-frame / per-pick heap allocations)
-const vector = new THREE.Vector3();
-const tempPos = new THREE.Vector3();
+// Pre-allocated scratch objects (no per-frame heap allocations)
 const flickerColor = new THREE.Color();
 const white = new THREE.Color(0xffffff);
 
-// --- Picking ---
-// Spheres are tiny (r=0.1), so we pick the nearest one in screen space within a
-// pixel radius rather than requiring an exact ray hit — far more forgiving.
-function pickNearest(clientX, clientY, radiusPx) {
-  let closest = null;
-  let minDistSq = radiusPx * radiusPx;
-  for (let i = 0; i < count; i++) {
-    tempPos.set(songData[i].x, songData[i].y, songData[i].z);
-    vector.copy(tempPos).project(camera);
-    if (vector.z > 1) continue; // behind the camera / beyond far plane
-    const screenX = (vector.x + 1) / 2 * window.innerWidth;
-    const screenY = (-vector.y + 1) / 2 * window.innerHeight;
-    const dx = screenX - clientX;
-    const dy = screenY - clientY;
-    const distSq = dx * dx + dy * dy;
-    if (distSq < minDistSq) {
-      minDistSq = distSq;
-      closest = i;
-    }
-  }
-  return closest;
+// --- Picking (depth-aware raycast against the InstancedMesh) ---
+// A hit means the cursor is genuinely over the sphere's rendered geometry, and
+// intersections come back sorted by distance — so the front-most sphere wins and
+// spheres occluded behind it are never returned.
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+
+function raycastInstance(clientX, clientY) {
+  ndc.x = (clientX / window.innerWidth) * 2 - 1;
+  ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObject(instancedMesh)[0];
+  return hit ? hit.instanceId : null;
 }
 
-// --- Label ---
+// Mouse: a single ray — you select a sphere by touching it with the cursor.
+const pickMouse = raycastInstance;
+
+// Touch: a fingertip rarely lands a single ray on a sphere this small, so probe a
+// few offsets around the tap (center first, then outward) and take the first hit.
+// Forgiving, while each individual ray still respects occlusion.
+const TOUCH_PROBES = [
+  [0, 0],
+  [12, 0], [-12, 0], [0, 12], [0, -12], [9, 9], [-9, 9], [9, -9], [-9, -9],
+  [24, 0], [-24, 0], [0, 24], [0, -24], [17, 17], [-17, 17], [17, -17], [-17, -17],
+];
+function pickTouch(clientX, clientY) {
+  for (const [ox, oy] of TOUCH_PROBES) {
+    const id = raycastInstance(clientX + ox, clientY + oy);
+    if (id !== null) return id;
+  }
+  return null;
+}
+
+// --- Tooltip ---
+// A single screen-space element anchored to the upper-right of the cursor (rather
+// than centered on the sphere) so the pointer never covers the text. `labelIndex`
+// also drives the in-scene highlight in the render loop.
 let labelIndex = null;
-let currentLabel = null;
+const TOOLTIP_OFFSET_PX = 14;
+const tooltip = document.createElement('div');
+tooltip.className = 'label';
+document.body.appendChild(tooltip);
 
-function showLabel(index) {
-  if (index === labelIndex) return;
-  removeLabel(true);
-  const track = songData[index];
-  const div = document.createElement('div');
-  div.className = 'label visible';
-  div.textContent = `${track.artist} - ${track.title}, ${track.genre}`;
-  currentLabel = new CSS2DObject(div);
-  currentLabel.position.set(track.x, track.y + 0.15, track.z);
-  scene.add(currentLabel);
-  labelIndex = index;
+function showLabel(index, clientX, clientY) {
+  if (index !== labelIndex) {
+    const track = songData[index];
+    tooltip.textContent = `${track.artist} - ${track.title}, ${track.genre}`;
+    labelIndex = index;
+  }
+  // Anchor the tooltip's lower-left near the cursor; CSS translateY(-100%) lifts it
+  // above, so it sits to the upper-right.
+  tooltip.style.left = `${clientX + TOOLTIP_OFFSET_PX}px`;
+  tooltip.style.top = `${clientY - TOOLTIP_OFFSET_PX}px`;
+  tooltip.classList.add('visible');
 }
 
-function removeLabel(immediate = false) {
-  if (!currentLabel) return;
-  const label = currentLabel;
-  currentLabel = null;
+function hideLabel() {
+  if (labelIndex === null) return;
   labelIndex = null;
-  if (immediate) {
-    label.element.remove();
-    scene.remove(label);
-    return;
-  }
-  label.element.classList.remove('visible');
-  setTimeout(() => {
-    label.element.remove();
-    scene.remove(label);
-  }, 300);
+  tooltip.classList.remove('visible');
 }
 
 // --- Playback ---
@@ -193,20 +188,20 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointerup', (e) => {
   // Ignore the end of a drag (rotation); only a genuine tap/click selects.
   if (Math.hypot(e.clientX - pressX, e.clientY - pressY) > DRAG_THRESHOLD_PX) return;
-  // Fingers are less precise than a cursor: give touch a larger hit radius.
-  const radiusPx = e.pointerType === 'touch' ? 32 : 20;
-  const index = pickNearest(e.clientX, e.clientY, radiusPx);
-  if (index === null) return;
-  showLabel(index);
+  const index = e.pointerType === 'touch'
+    ? pickTouch(e.clientX, e.clientY)
+    : pickMouse(e.clientX, e.clientY);
+  if (index === null) { hideLabel(); return; } // tap on empty space dismisses
+  showLabel(index, e.clientX, e.clientY);
   playTrack(index);
 });
 
-// Hover labels apply to a mouse only, and only while no button is pressed.
+// Hover tooltips apply to a mouse only, and only while no button is pressed.
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerType !== 'mouse' || e.buttons !== 0) return;
-  const index = pickNearest(e.clientX, e.clientY, 20);
-  if (index === null) removeLabel();
-  else showLabel(index);
+  const index = pickMouse(e.clientX, e.clientY);
+  if (index === null) hideLabel();
+  else showLabel(index, e.clientX, e.clientY);
 });
 
 const animate = () => {
@@ -234,7 +229,6 @@ const animate = () => {
   renderer.clear();
   renderer.render(bgScene, bgCamera);
   renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
 };
 
 const { bgScene, bgCamera } = createBackground();

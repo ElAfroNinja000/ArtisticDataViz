@@ -9,10 +9,14 @@
          instead of the browser scrolling/zooming the page. */
       canvas { display: block; touch-action: none; }
       .label {
+        position: absolute;
+        /* Anchored at the cursor and lifted above it, so the tooltip sits to the
+           upper-right of the pointer. pointer-events: none keeps clicks on canvas. */
+        transform: translateY(-100%);
+        pointer-events: none;
         font-family: sans-serif;
         /* Wrap within a cap instead of overflowing the viewport edge on mobile. */
         max-width: min(220px, 80vw);
-        text-align: center;
         color: #fff;
         font-size: 14px;
         padding: 4px 8px;
