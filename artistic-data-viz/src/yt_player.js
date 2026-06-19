@@ -5,9 +5,9 @@ export const playerReady = new Promise((resolve) => {
 });
 
 export function initYoutubePlayer() {
-  // Le lecteur joue l'audio mais reste invisible : on affiche à la place un bandeau
-  // "en lecture" custom (cf. main.js). On garde l'iframe rendue (1x1, opacity 0) plutôt
-  // que display:none, car masquer complètement couperait l'audio sur certains navigateurs.
+  // The player plays audio but stays invisible: a custom "now playing" banner is shown
+  // instead (see main.js). The iframe is kept rendered (1x1, opacity 0) rather than
+  // display:none, because fully hiding it would cut the audio in some browsers.
   const wrapper = document.createElement('div');
   wrapper.style.position = 'fixed';
   wrapper.style.left = '0';
@@ -34,8 +34,8 @@ export function initYoutubePlayer() {
       videoId: '',
       events: {
         onReady: () => {
-          console.log("✅ YouTube Player prêt");
-          playerReadyResolve(player); // Résout la promesse avec l’instance
+          console.log("✅ YouTube Player ready");
+          playerReadyResolve(player); // Resolves the promise with the player instance
         }
       }
     });
