@@ -132,7 +132,6 @@
         font-size: 13px;
       }
       #sphere-panel input[type="range"] { width: 100%; accent-color: #66c2a5; }
-      #sphere-panel .sp-auto { display: flex; align-items: center; gap: 6px; cursor: pointer; }
       #sphere-panel .sp-close {
         cursor: pointer;
         border: none;
@@ -143,10 +142,44 @@
         font-size: 13px;
       }
       #sphere-panel input:disabled { opacity: 0.4; }
+
+      /* --- Mobile: bigger, readable UI that stays out of the main view --- */
+      @media (max-width: 600px) {
+        /* Now playing: a full-width band pinned to the top (keeps the bottom-right
+           Capacity control clear), larger text but kept slim. */
+        #nowplaying {
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: auto;
+          width: 100%;
+          max-width: none;
+          border-radius: 0;
+          padding: 11px 16px;
+          gap: 14px;
+          transform: translateY(-100%);
+        }
+        #nowplaying.visible { transform: none; }
+        #nowplaying .np-text { font-size: 15px; }
+        #nowplaying .np-now { font-size: 11px; }
+        #nowplaying .np-title { font-size: 16px; }
+        #nowplaying .np-artist { font-size: 14px; }
+        #nowplaying .np-genre { font-size: 13px; }
+        #nowplaying .np-buttons { flex-direction: row; align-items: center; gap: 8px; }
+        #nowplaying .np-buttons button { padding: 9px 13px; font-size: 15px; }
+        #nowplaying .np-playpause { font-size: 17px; }
+
+        /* Capacity: bottom-right, with larger touch targets. */
+        #sphere-chip { padding: 11px 18px; font-size: 15px; }
+        #sphere-panel { width: min(420px, 94vw); padding: 15px 16px; gap: 12px; }
+        #sphere-panel .sp-row { font-size: 15px; }
+        #sphere-panel .sp-close { padding: 4px 12px; font-size: 17px; }
+        #sphere-panel input[type="range"] { height: 30px; }
+      }
     </style>
   </head>
   <body>
-    <div id="loading"><div class="load-text">Chargement des données...</div><div class="spinner"></div></div>
+    <div id="loading"><div class="load-text">Loading data...</div><div class="spinner"></div></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

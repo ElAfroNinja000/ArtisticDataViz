@@ -11,12 +11,12 @@ try {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   data = await res.json();
 } catch (err) {
-  if (loadingEl) loadingEl.textContent = `Erreur de chargement : ${err.message}`;
+  if (loadingEl) loadingEl.textContent = `Loading error: ${err.message}`;
   throw err;
 }
 loadingEl?.remove();
 
-const TOTAL_POINTS = data.length; // everything served; the slider/governor cap what renders
+const TOTAL_POINTS = data.length; // everything served; the slider caps how many render
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -42,7 +42,7 @@ window.addEventListener('resize', () => {
 
 const YT_API_KEY = import.meta.env.VITE_YT_API_KEY;
 if (!YT_API_KEY) {
-  console.warn("VITE_YT_API_KEY manquante : copie .env.example vers .env et renseigne ta clé.");
+  console.warn("VITE_YT_API_KEY missing: copy .env.example to .env and set your key.");
 }
 
 initYoutubePlayer();
@@ -177,14 +177,14 @@ nowPlaying.className = 'ui-pill';
 nowPlaying.id = 'nowplaying';
 nowPlaying.innerHTML =
   '<div class="np-text">' +
-    '<span class="np-now">Now playing :</span>' +
+    '<span class="np-now">Now playing:</span>' +
     '<span class="np-title"></span>' +
     '<span class="np-artist"></span>' +
     '<span class="np-genre"></span>' +
   '</div>' +
   '<div class="np-buttons">' +
-    '<button class="np-playpause" type="button" title="Lecture / Pause">⏸</button>' +
-    '<button class="np-copy" type="button">⧉ Lien</button>' +
+    '<button class="np-playpause" type="button" title="Play / Pause">⏸</button>' +
+    '<button class="np-copy" type="button">⧉ Link</button>' +
   '</div>';
 document.body.appendChild(nowPlaying);
 const npTitle = nowPlaying.querySelector('.np-title');
@@ -212,10 +212,10 @@ npCopy.addEventListener('click', async () => {
   if (!currentVideoId) return;
   try {
     await navigator.clipboard.writeText(`https://youtu.be/${currentVideoId}`);
-    npCopy.textContent = 'Copié !';
-    setTimeout(() => { npCopy.textContent = '⧉ Lien'; }, 1500);
+    npCopy.textContent = 'Copied!';
+    setTimeout(() => { npCopy.textContent = '⧉ Link'; }, 1500);
   } catch (err) {
-    console.error("Copie impossible :", err);
+    console.error("Copy failed:", err);
   }
 });
 
@@ -240,10 +240,10 @@ async function playTrack(index) {
       player.loadVideoById(videoId);
       showNowPlaying(track, videoId);
     } else {
-      alert("Vidéo non trouvée.");
+      alert("Video not found.");
     }
   } catch (err) {
-    console.error("Erreur recherche YouTube :", err);
+    console.error("YouTube search error:", err);
   }
 }
 
@@ -281,13 +281,11 @@ canvas.addEventListener('pointermove', (e) => {
   hoverDirty = true;
 });
 
-// --- Sphere-count control (chip ⇄ panel) + adaptive FPS governor ---
-// Shown as a percentage of the full dataset ("Capacity"), 2 decimals.
+// --- Sphere-count control (chip ⇄ panel) ---
+// "Capacity" is shown as a percentage of the full dataset (2 decimals).
 const pct = (n) => (n / TOTAL_POINTS * 100).toFixed(2);
 
-let maxAllowed = Math.min(TOTAL_POINTS, 6000); // conservative start; governor adjusts up/down
-let currentCount = maxAllowed;
-let autoMode = true;
+let currentCount = Math.round(TOTAL_POINTS * 0.5); // default: 50% of the dataset
 
 const chip = document.createElement('div');
 chip.className = 'ui-pill';
@@ -299,75 +297,24 @@ const panel = document.createElement('div');
 panel.className = 'ui-pill';
 panel.id = 'sphere-panel';
 panel.innerHTML =
-  '<div class="sp-row"><span>Capacity : <b class="sp-count"></b></span><button class="sp-close" type="button">×</button></div>' +
-  '<input class="sp-range" type="range" min="500" step="100">' +
-  '<label class="sp-auto"><input class="sp-autocb" type="checkbox" checked> Auto (perf)</label>';
+  '<div class="sp-row"><span>Capacity: <b class="sp-count"></b></span><button class="sp-close" type="button">×</button></div>' +
+  `<input class="sp-range" type="range" min="500" max="${TOTAL_POINTS}" step="100">`;
 document.body.appendChild(panel);
 const spCount = panel.querySelector('.sp-count');
 const range = panel.querySelector('.sp-range');
-const autoCb = panel.querySelector('.sp-autocb');
 
 chip.addEventListener('click', () => { panel.classList.add('open'); chip.style.display = 'none'; });
 panel.querySelector('.sp-close').addEventListener('click', () => { panel.classList.remove('open'); chip.style.display = ''; });
 
-function refreshLabels() {
+function applyCount(n) {
+  currentCount = Math.max(500, Math.min(TOTAL_POINTS, Math.round(n)));
+  instancedMesh.count = currentCount;
+  range.value = currentCount;
   spCount.textContent = `${pct(currentCount)}%`;
 }
 
-function applyCount(n) {
-  currentCount = Math.max(500, Math.min(maxAllowed, Math.round(n)));
-  instancedMesh.count = currentCount;
-  range.value = currentCount;
-  refreshLabels();
-}
-
-function refreshBounds() {
-  range.max = maxAllowed;
-  if (currentCount > maxAllowed) applyCount(maxAllowed);
-  else refreshLabels();
-}
-
-range.addEventListener('input', () => {
-  autoMode = false;
-  autoCb.checked = false;
-  range.disabled = false;
-  applyCount(+range.value);
-});
-
-autoCb.addEventListener('change', () => {
-  autoMode = autoCb.checked;
-  range.disabled = autoMode;
-  if (autoMode) applyCount(maxAllowed);
-});
-
-range.disabled = autoMode;
+range.addEventListener('input', () => applyCount(+range.value));
 applyCount(currentCount);
-
-// FPS governor: keep the cap (maxAllowed) within what the device sustains. A dead band
-// [50, 57] avoids oscillation; in Auto mode the rendered count follows the cap.
-let govFrames = 0;
-let govT0 = performance.now();
-function governorTick(now) {
-  govFrames++;
-  const dt = now - govT0;
-  if (dt < 1000) return;
-  const fps = (govFrames * 1000) / dt;
-  govFrames = 0;
-  govT0 = now;
-
-  let changed = false;
-  if (fps < 50 && maxAllowed > 1000) {
-    maxAllowed = Math.max(1000, Math.round(maxAllowed * 0.85));
-    changed = true;
-  } else if (fps > 57 && maxAllowed < TOTAL_POINTS) {
-    maxAllowed = Math.min(TOTAL_POINTS, Math.round(maxAllowed * 1.15) + 250);
-    changed = true;
-  }
-  if (changed) {
-    refreshBounds();
-    if (autoMode) applyCount(maxAllowed);
-  }
-}
 
 // --- Render loop ---
 const animate = () => {
@@ -383,8 +330,6 @@ const animate = () => {
     if (index === null) hideLabel();
     else showLabel(index, hoverX, hoverY);
   }
-
-  governorTick(now);
 
   renderer.autoClear = false;
   renderer.clear();

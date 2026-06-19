@@ -72,7 +72,7 @@ python data_processing.py   # CSV -> ../data/...full.json (45k archive) + ../pub
 The pipeline writes two files: the full dataset to `data/` (canonical archive) and a
 `FRONTEND_POINTS`-row subset to `public/` (what the app fetches). `FRONTEND_POINTS` is
 currently `45000`, so `public/` holds the whole set; the front-end then caps how many
-of those actually render via a UI slider + adaptive FPS governor (no fixed `MAX_POINTS`).
+of those actually render via a UI slider ("Capacity", default 50%).
 
 Install deps with `pip install -r artistic-data-viz/requirements.txt`
 (`pandas`, `scikit-learn`, `umap-learn`).
@@ -99,15 +99,16 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
   scales/whitens the active sphere. The render loop only updates `uTime` — flat per-frame
   CPU cost regardless of how many spheres show. (This is what makes 45k viable; the old
   per-frame CPU rebuild capped out around 5–8k.)
-- **How many render is user/adaptive-controlled**: `instancedMesh.count` is driven by a
-  bottom-right slider (chip ⇄ panel) plus an **Auto FPS governor** that raises/lowers the
-  cap to keep the framerate smooth on any device (dead band [50,57] fps).
+- **How many render is user-controlled**: `instancedMesh.count` is driven by a
+  bottom-right "Capacity" slider (chip ⇄ panel) shown as a percentage of the full
+  dataset (default 50%). Changing it is instant (just sets `.count`).
 - **Picking** is a depth-aware `Raycaster` against the InstancedMesh (front-most wins,
   occlusion handled). Hover raycast runs at most once per frame; touch probes a few
   offsets around the tap for a forgiving hit. The tooltip follows the cursor (upper-right).
 - Click/tap queries the YouTube Data API and plays the track in a **hidden** iframe
-  (`yt_player.js`); a bottom-left "now playing" banner shows artist/title + a button that
-  copies the `https://youtu.be/<id>` link.
+  (`yt_player.js`); a "now playing" banner shows artist/title/genre + play-pause and a
+  button that copies the `https://youtu.be/<id>` link. On mobile (≤600px) the banner
+  becomes a full-width top band and the Capacity control sits bottom-right.
 
 ## Conventions & gotchas
 
@@ -121,7 +122,8 @@ Install deps with `pip install -r artistic-data-viz/requirements.txt`
   (set in `.env`, never committed). Do not inline keys in source. Note: the previously
   committed key in git history is compromised and should be rotated in the Google Cloud
   console.
-- Comments and console messages mix French and English; match the surrounding file.
+- The UI and user-facing strings are in English. The Python pipeline still has some
+  French comments; new front-end code should be English.
 
 ## Deployment (Vercel)
 
