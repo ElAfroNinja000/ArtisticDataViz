@@ -30,14 +30,25 @@
         position: fixed;
         inset: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
+        gap: 18px;
         background: #151b26;
         color: #fff;
         font-family: sans-serif;
         font-size: 18px;
         z-index: 100;
       }
+      .spinner {
+        width: 38px;
+        height: 38px;
+        border: 4px solid rgba(255, 255, 255, 0.22);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
 
       /* Shared look for the on-screen control pills */
       .ui-pill {
@@ -65,17 +76,23 @@
         pointer-events: none;
       }
       #nowplaying.visible { opacity: 1; transform: none; pointer-events: auto; }
-      #nowplaying .np-text { font-size: 13px; line-height: 1.3; min-width: 0; }
-      #nowplaying .np-title { font-weight: 600; }
-      #nowplaying .np-text .np-title,
-      #nowplaying .np-text .np-artist {
+      #nowplaying .np-text { font-size: 13px; line-height: 1.35; min-width: 0; }
+      #nowplaying .np-text > span {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      #nowplaying .np-copy {
-        flex: none;
+      #nowplaying .np-now {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.55;
+      }
+      #nowplaying .np-title { font-weight: 600; }
+      #nowplaying .np-genre { font-size: 11px; opacity: 0.7; }
+      #nowplaying .np-buttons { flex: none; display: flex; flex-direction: column; gap: 5px; }
+      #nowplaying .np-buttons button {
         cursor: pointer;
         border: none;
         background: rgba(255, 255, 255, 0.16);
@@ -85,7 +102,8 @@
         font-size: 12px;
         white-space: nowrap;
       }
-      #nowplaying .np-copy:hover { background: rgba(255, 255, 255, 0.28); }
+      #nowplaying .np-buttons button:hover { background: rgba(255, 255, 255, 0.28); }
+      #nowplaying .np-mute { font-size: 14px; line-height: 1; }
 
       /* Sphere-count control (bottom-right): a chip that expands into a panel */
       #sphere-chip {
@@ -128,7 +146,7 @@
     </style>
   </head>
   <body>
-    <div id="loading">Chargement des données...</div>
+    <div id="loading"><div class="load-text">Chargement des données...</div><div class="spinner"></div></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

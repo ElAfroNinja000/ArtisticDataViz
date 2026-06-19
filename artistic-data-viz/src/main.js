@@ -176,12 +176,36 @@ const nowPlaying = document.createElement('div');
 nowPlaying.className = 'ui-pill';
 nowPlaying.id = 'nowplaying';
 nowPlaying.innerHTML =
-  '<div class="np-text"><span class="np-title"></span><span class="np-artist"></span></div>' +
-  '<button class="np-copy" type="button">⧉ Lien</button>';
+  '<div class="np-text">' +
+    '<span class="np-now">Now playing :</span>' +
+    '<span class="np-title"></span>' +
+    '<span class="np-artist"></span>' +
+    '<span class="np-genre"></span>' +
+  '</div>' +
+  '<div class="np-buttons">' +
+    '<button class="np-mute" type="button" title="Couper / activer le son">🔊</button>' +
+    '<button class="np-copy" type="button">⧉ Lien</button>' +
+  '</div>';
 document.body.appendChild(nowPlaying);
 const npTitle = nowPlaying.querySelector('.np-title');
 const npArtist = nowPlaying.querySelector('.np-artist');
+const npGenre = nowPlaying.querySelector('.np-genre');
+const npMute = nowPlaying.querySelector('.np-mute');
 const npCopy = nowPlaying.querySelector('.np-copy');
+
+let ytPlayer = null;
+playerReady.then((p) => { ytPlayer = p; });
+
+npMute.addEventListener('click', () => {
+  if (!ytPlayer) return;
+  if (ytPlayer.isMuted()) {
+    ytPlayer.unMute();
+    npMute.textContent = '🔊';
+  } else {
+    ytPlayer.mute();
+    npMute.textContent = '🔇';
+  }
+});
 
 npCopy.addEventListener('click', async () => {
   if (!currentVideoId) return;
@@ -198,6 +222,7 @@ function showNowPlaying(track, videoId) {
   currentVideoId = videoId;
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
+  npGenre.textContent = track.genre;
   nowPlaying.classList.add('visible');
 }
 
@@ -255,7 +280,8 @@ canvas.addEventListener('pointermove', (e) => {
 });
 
 // --- Sphere-count control (chip ⇄ panel) + adaptive FPS governor ---
-const fmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n % 1000 ? 1 : 0)}k` : String(n));
+// Shown as a percentage of the full dataset ("Capacity"), 2 decimals.
+const pct = (n) => (n / TOTAL_POINTS * 100).toFixed(2);
 
 let maxAllowed = Math.min(TOTAL_POINTS, 6000); // conservative start; governor adjusts up/down
 let currentCount = maxAllowed;
@@ -270,7 +296,7 @@ const panel = document.createElement('div');
 panel.className = 'ui-pill';
 panel.id = 'sphere-panel';
 panel.innerHTML =
-  '<div class="sp-row"><span>Sphères : <b class="sp-count"></b></span><button class="sp-close" type="button">×</button></div>' +
+  '<div class="sp-row"><span>Capacity : <b class="sp-count"></b></span><button class="sp-close" type="button">×</button></div>' +
   '<input class="sp-range" type="range" min="500" step="100">' +
   '<label class="sp-auto"><input class="sp-autocb" type="checkbox" checked> Auto (perf)</label>';
 document.body.appendChild(panel);
@@ -282,8 +308,8 @@ chip.addEventListener('click', () => { panel.classList.add('open'); chip.style.d
 panel.querySelector('.sp-close').addEventListener('click', () => { panel.classList.remove('open'); chip.style.display = ''; });
 
 function refreshLabels() {
-  chip.textContent = `◉ ${fmt(currentCount)} sphères`;
-  spCount.textContent = `${currentCount.toLocaleString('fr-FR')} / ${maxAllowed.toLocaleString('fr-FR')}`;
+  chip.textContent = `◉ ${pct(currentCount)}% Capacity`;
+  spCount.textContent = `${pct(currentCount)}%`;
 }
 
 function applyCount(n) {
