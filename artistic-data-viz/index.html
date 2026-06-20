@@ -162,6 +162,19 @@
       }
       #nowplaying .hist-copy { flex: none; margin-left: auto; opacity: 0; }
       #nowplaying .hist-row:hover .hist-copy { opacity: 0.7; }
+      /* Delete control: same pill style as the play/pause button */
+      #nowplaying .hist-del {
+        flex: none;
+        cursor: pointer;
+        border: none;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        border-radius: 7px;
+        padding: 3px 7px;
+        font-size: 12px;
+        line-height: 1;
+      }
+      #nowplaying .hist-del:hover { background: rgba(255, 255, 255, 0.28); }
 
       /* Sphere-count control (bottom-right): a chip that expands into a panel */
       #sphere-chip {
@@ -232,6 +245,7 @@
         #nowplaying .np-history { max-height: 50vh; }
         #nowplaying .hist-row { padding: 10px 10px; font-size: 14px; }
         #nowplaying .hist-copy { opacity: 0.7; }
+        #nowplaying .hist-del { padding: 6px 10px; font-size: 14px; }
 
         /* Capacity: bottom-right, with larger touch targets. */
         #sphere-chip { padding: 11px 18px; font-size: 15px; }

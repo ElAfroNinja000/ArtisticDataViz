@@ -261,19 +261,27 @@ function renderHistory() {
 
   npHistory.innerHTML = '';
   history.forEach((item) => {
-    const row = document.createElement('button');
-    row.type = 'button';
+    // A div (not a button) so the delete control can be a real nested <button>.
+    const row = document.createElement('div');
     row.className = 'hist-row';
     row.innerHTML =
       '<span class="hist-i">♪</span>' +
       `<span class="hist-t"></span><span class="hist-a"></span>` +
-      '<span class="hist-copy">⧉</span>';
+      '<span class="hist-copy">⧉</span>' +
+      '<button class="hist-del" type="button" title="Remove" aria-label="Remove from history">✕</button>';
     row.querySelector('.hist-t').textContent = item.title;
     row.querySelector('.hist-a').textContent = ` · ${item.artist}`;
     // A history click copies the link AND replays the track (per the agreed behavior).
     row.addEventListener('click', () => {
       copyLink(item.videoId);
       playFromHistory(item);
+    });
+    // Delete: remove just this track from the history (don't trigger the row's replay).
+    row.querySelector('.hist-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      history = history.filter((h) => h.videoId !== item.videoId);
+      saveHistory();
+      renderHistory();
     });
     npHistory.appendChild(row);
   });
