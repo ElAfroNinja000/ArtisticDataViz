@@ -3,6 +3,25 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { createBackground } from './background.js';
 import { initYoutubePlayer, playerReady } from './yt_player.js';
 
+// ===== TEMP diagnostic harness (mobile white-screen). Remove after diagnosis. =====
+const dbgEl = document.createElement('div');
+dbgEl.style.cssText =
+  'position:fixed;top:0;left:0;right:0;z-index:9999;max-height:60%;overflow:auto;' +
+  'background:rgba(0,0,0,.82);color:#5f5;font:12px/1.45 monospace;padding:6px 8px;white-space:pre-wrap;';
+document.body.appendChild(dbgEl);
+const dbg = (m) => { dbgEl.textContent += m + '\n'; };
+const fatal = (m) => { dbgEl.style.color = '#f66'; dbg('FATAL: ' + m); };
+window.addEventListener('error', (e) =>
+  fatal(`${e.message || ''} @ ${(e.filename || '').split('/').pop()}:${e.lineno || ''}` + (e.error?.stack ? '\n' + e.error.stack : '')));
+window.addEventListener('unhandledrejection', (e) =>
+  fatal('promise: ' + (e.reason?.message || e.reason) + (e.reason?.stack ? '\n' + e.reason.stack : '')));
+const _consoleError = console.error.bind(console);
+console.error = (...a) => { fatal('console.error: ' + a.map((x) => x?.message || String(x)).join(' ')); _consoleError(...a); };
+dbg('ua: ' + navigator.userAgent.slice(0, 60));
+dbg('dpr: ' + window.devicePixelRatio + ' | vw: ' + window.innerWidth + 'x' + window.innerHeight);
+dbg('boot ok');
+// ===== end diagnostic harness =====
+
 const loadingEl = document.getElementById('loading');
 
 let data;
@@ -17,6 +36,7 @@ try {
 loadingEl?.remove();
 
 const TOTAL_POINTS = data.length; // everything served; the slider caps how many render
+dbg('data ok: ' + TOTAL_POINTS + ' points');
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -26,6 +46,10 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
+dbg('renderer ok | webgl2=' + renderer.capabilities.isWebGL2 +
+    ' maxTex=' + renderer.capabilities.maxTextureSize +
+    ' maxAttr=' + renderer.capabilities.maxAttributes);
+renderer.domElement.addEventListener('webglcontextlost', (e) => { e.preventDefault(); fatal('WEBGL CONTEXT LOST'); });
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -93,6 +117,7 @@ material.onBeforeCompile = (shader) => {
 
 const instancedMesh = new THREE.InstancedMesh(geometry, material, TOTAL_POINTS);
 scene.add(instancedMesh);
+dbg('instancedMesh allocated (' + TOTAL_POINTS + ')');
 
 const dummy = new THREE.Object3D();
 const songData = [];
@@ -114,6 +139,7 @@ data.forEach((track, i) => {
 });
 instancedMesh.instanceMatrix.needsUpdate = true;
 instancedMesh.instanceColor.needsUpdate = true;
+dbg('instances filled');
 
 // --- Picking (depth-aware raycast against the InstancedMesh) ---
 // intersectObject only tests active instances (respects instancedMesh.count) and returns
@@ -315,8 +341,10 @@ function applyCount(n) {
 
 range.addEventListener('input', () => applyCount(+range.value));
 applyCount(currentCount);
+dbg('initial count = ' + currentCount + ' (' + pct(currentCount) + '%)');
 
 // --- Render loop ---
+let firstFrame = true;
 const animate = () => {
   requestAnimationFrame(animate);
   const now = performance.now();
@@ -335,6 +363,8 @@ const animate = () => {
   renderer.clear();
   renderer.render(bgScene, bgCamera);
   renderer.render(scene, camera);
+
+  if (firstFrame) { firstFrame = false; dbg('first frame rendered ✓'); }
 };
 
 const { bgScene, bgCamera } = createBackground();
