@@ -1,6 +1,9 @@
 /artistic-data-viz/node_modules/
 /artistic-data-viz/dist/
 
+# Claude Code local session/project files
+/.claude/
+
 # Secrets / local env (never commit real API keys)
 .env
 .env.local
