@@ -192,27 +192,37 @@ const nowPlaying = document.createElement('div');
 nowPlaying.className = 'ui-pill';
 nowPlaying.id = 'nowplaying';
 nowPlaying.innerHTML =
-  '<div class="np-main">' +
-    '<div class="np-text">' +
-      '<span class="np-now">My Songs · now playing</span>' +
-      '<span class="np-title"></span>' +
-      '<span class="np-artist"></span>' +
-      '<span class="np-genre"></span>' +
+  '<button class="np-collapse" type="button" title="Collapse">×</button>' +
+  '<div class="np-body">' +
+    '<div class="np-main">' +
+      '<div class="np-text">' +
+        '<span class="np-now">My Songs</span>' +
+        '<span class="np-default">Browse and select any point!</span>' +
+        '<span class="np-title"></span>' +
+        '<span class="np-artist"></span>' +
+        '<span class="np-genre"></span>' +
+      '</div>' +
+      '<div class="np-buttons">' +
+        '<button class="np-playpause" type="button" title="Play / Pause"></button>' +
+        '<button class="np-copy" type="button">⧉ Link</button>' +
+        '<button class="np-star" type="button" title="Add to favorites">☆</button>' +
+      '</div>' +
     '</div>' +
-    '<div class="np-buttons">' +
-      '<button class="np-playpause" type="button" title="Play / Pause"></button>' +
-      '<button class="np-copy" type="button">⧉ Link</button>' +
-      '<button class="np-star" type="button" title="Add to favorites">☆</button>' +
-    '</div>' +
-  '</div>' +
-  '<button class="np-favorites-toggle" type="button"></button>' +
-  '<div class="np-favorites"></div>' +
-  '<button class="np-history-toggle" type="button"></button>' +
-  '<div class="np-history"></div>';
+    '<button class="np-favorites-toggle" type="button"></button>' +
+    '<div class="np-favorites"></div>' +
+    '<button class="np-history-toggle" type="button"></button>' +
+    '<div class="np-history"></div>' +
+  '</div>';
 document.body.appendChild(nowPlaying);
+nowPlaying.classList.add('visible');
+const npCollapse = nowPlaying.querySelector('.np-collapse');
+const npBody = nowPlaying.querySelector('.np-body');
+const npNow = nowPlaying.querySelector('.np-now');
+const npDefault = nowPlaying.querySelector('.np-default');
 const npTitle = nowPlaying.querySelector('.np-title');
 const npArtist = nowPlaying.querySelector('.np-artist');
 const npGenre = nowPlaying.querySelector('.np-genre');
+const npButtons = nowPlaying.querySelector('.np-buttons');
 const npPlayPause = nowPlaying.querySelector('.np-playpause');
 const npCopy = nowPlaying.querySelector('.np-copy');
 const npStar = nowPlaying.querySelector('.np-star');
@@ -220,6 +230,15 @@ const npFavoritesToggle = nowPlaying.querySelector('.np-favorites-toggle');
 const npFavorites = nowPlaying.querySelector('.np-favorites');
 const npHistoryToggle = nowPlaying.querySelector('.np-history-toggle');
 const npHistory = nowPlaying.querySelector('.np-history');
+
+// Initially hide the track info and buttons (shown on first play)
+npButtons.style.display = 'none';
+
+// Collapse/expand toggle
+npCollapse.addEventListener('click', () => {
+  const collapsed = nowPlaying.classList.toggle('collapsed');
+  npCollapse.textContent = collapsed ? '♫' : '×';
+});
 
 // Text-presentation (U+FE0E) variants so the control renders as the same monochrome
 // glyph as on desktop, instead of a colored emoji on mobile (Android default).
@@ -269,6 +288,8 @@ npStar.addEventListener('click', () => {
 // --- Favorites & History: collapse/expand with mutual exclusion ---
 let favoritesOpen = false;
 let historyOpen = false;
+renderFavorites();
+renderHistory();
 
 npFavoritesToggle.addEventListener('click', () => {
   favoritesOpen = !favoritesOpen;
@@ -391,11 +412,13 @@ function setNowPlaying(track, videoId) {
   history = history.filter((h) => h.videoId !== videoId);
   currentTrack = { title: track.title, artist: track.artist, genre: track.genre, videoId };
 
+  npNow.style.display = 'none';
+  npDefault.style.display = 'none';
+  npButtons.style.display = '';
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
   npGenre.textContent = track.genre;
   npPlayPause.textContent = ICON_PAUSE;
-  nowPlaying.classList.add('visible');
   updateStarButton();
 
   saveHistory();
