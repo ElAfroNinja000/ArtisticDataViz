@@ -201,7 +201,7 @@ nowPlaying.innerHTML =
     '</div>' +
     '<div class="np-buttons">' +
       '<button class="np-playpause" type="button" title="Play / Pause"></button>' +
-      '<button class="np-copy" type="button">⧉ Link</button>' +
+      '<button class="np-copy" type="button">⧉</button>' +
       '<button class="np-star" type="button" title="Add to favorites">☆</button>' +
     '</div>' +
   '</div>' +
@@ -251,8 +251,8 @@ async function copyLink(videoId) {
   if (!videoId) return;
   try {
     await navigator.clipboard.writeText(`https://youtu.be/${videoId}`);
-    npCopy.textContent = 'Copied!';
-    setTimeout(() => { npCopy.textContent = '⧉ Link'; }, 1500);
+    npCopy.textContent = '✓';
+    setTimeout(() => { npCopy.textContent = '⧉'; }, 1500);
   } catch (err) {
     console.error("Copy failed:", err);
   }
