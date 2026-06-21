@@ -111,8 +111,10 @@
       }
       #nowplaying .np-buttons button:hover { background: rgba(255, 255, 255, 0.28); }
       #nowplaying .np-playpause { font-size: 14px; line-height: 1; font-variant-emoji: text; }
+      #nowplaying .np-star { font-size: 13px; line-height: 1; }
 
-      /* History: a toggle row + a scrollable list (shown only when expanded) */
+      /* Favorites & History: toggle row + scrollable list (only one open at a time) */
+      #nowplaying .np-favorites-toggle,
       #nowplaying .np-history-toggle {
         cursor: pointer;
         border: none;
@@ -123,7 +125,9 @@
         font-size: 12px;
         white-space: nowrap;
       }
+      #nowplaying .np-favorites-toggle:hover,
       #nowplaying .np-history-toggle:hover { background: rgba(255, 255, 255, 0.18); }
+      #nowplaying .np-favorites,
       #nowplaying .np-history {
         display: none;
         flex-direction: column;
@@ -138,12 +142,16 @@
         scrollbar-width: thin;
         scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
       }
+      #nowplaying .np-favorites::-webkit-scrollbar,
       #nowplaying .np-history::-webkit-scrollbar { width: 6px; }
+      #nowplaying .np-favorites::-webkit-scrollbar-track,
       #nowplaying .np-history::-webkit-scrollbar-track { background: transparent; }
+      #nowplaying .np-favorites::-webkit-scrollbar-thumb,
       #nowplaying .np-history::-webkit-scrollbar-thumb {
         background: rgba(255, 255, 255, 0.35);
         border-radius: 3px;
       }
+      #nowplaying.favorites-open .np-favorites { display: flex; }
       #nowplaying.history-open .np-history { display: flex; }
       #nowplaying .hist-row {
         display: flex;
@@ -165,7 +173,8 @@
          overflowing the row (which previously caused a horizontal scrollbar). */
       #nowplaying .hist-t { flex: 0 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
       #nowplaying .hist-a { flex: 1 1 auto; min-width: 0; opacity: 0.6; overflow-wrap: anywhere; }
-      /* Delete control: same pill style as the play/pause button */
+      /* Row action buttons (star, delete): same pill style as the play/pause button */
+      #nowplaying .hist-fav,
       #nowplaying .hist-del {
         flex: none;
         cursor: pointer;
@@ -177,6 +186,7 @@
         font-size: 12px;
         line-height: 1;
       }
+      #nowplaying .hist-fav:hover,
       #nowplaying .hist-del:hover { background: rgba(255, 255, 255, 0.28); }
 
       /* Sphere-count control (bottom-right): a chip that expands into a panel */
@@ -243,10 +253,13 @@
         #nowplaying .np-buttons { flex-direction: row; align-items: center; gap: 8px; }
         #nowplaying .np-buttons button { padding: 9px 13px; font-size: 15px; }
         #nowplaying .np-playpause { font-size: 17px; }
-        /* History: larger touch targets; copy icon always visible (no hover on touch) */
+        /* Lists: larger touch targets */
+        #nowplaying .np-favorites-toggle,
         #nowplaying .np-history-toggle { padding: 10px 12px; font-size: 14px; }
+        #nowplaying .np-favorites,
         #nowplaying .np-history { max-height: 50vh; }
         #nowplaying .hist-row { padding: 10px 10px; font-size: 14px; }
+        #nowplaying .hist-fav,
         #nowplaying .hist-del { padding: 6px 10px; font-size: 14px; }
 
         /* Capacity: bottom-right, with larger touch targets. */
