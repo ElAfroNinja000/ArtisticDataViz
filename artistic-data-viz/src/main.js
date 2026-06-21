@@ -260,10 +260,10 @@ async function copyLink(videoId) {
 
 npCopy.addEventListener('click', () => copyLink(currentTrack?.videoId));
 
-// --- Star button: add the currently playing track to favorites ---
+// --- Star button: toggle the currently playing track in/out of favorites ---
 npStar.addEventListener('click', () => {
   if (!currentTrack) return;
-  addToFavorites(currentTrack);
+  toggleFavorite(currentTrack);
 });
 
 // --- Favorites & History: collapse/expand with mutual exclusion ---
@@ -292,11 +292,34 @@ function saveFavorites() {
   try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch { /* storage blocked */ }
 }
 
+function isFavorite(videoId) {
+  return favorites.some((f) => f.videoId === videoId);
+}
+
 function addToFavorites(item) {
-  if (favorites.some((f) => f.videoId === item.videoId)) return;
+  if (isFavorite(item.videoId)) return;
   favorites.unshift({ title: item.title, artist: item.artist, genre: item.genre, videoId: item.videoId });
   saveFavorites();
+  updateStarButton();
   renderFavorites();
+  renderHistory();
+}
+
+function removeFromFavorites(videoId) {
+  favorites = favorites.filter((f) => f.videoId !== videoId);
+  saveFavorites();
+  updateStarButton();
+  renderFavorites();
+  renderHistory();
+}
+
+function toggleFavorite(item) {
+  if (isFavorite(item.videoId)) removeFromFavorites(item.videoId);
+  else addToFavorites(item);
+}
+
+function updateStarButton() {
+  npStar.textContent = (currentTrack && isFavorite(currentTrack.videoId)) ? '★' : '☆';
 }
 
 function renderFavorites() {
@@ -336,17 +359,18 @@ function renderHistory() {
   history.forEach((item) => {
     const row = document.createElement('div');
     row.className = 'hist-row';
+    const starred = isFavorite(item.videoId);
     row.innerHTML =
       '<span class="hist-i">♪</span>' +
       '<span class="hist-t"></span><span class="hist-a"></span>' +
-      '<button class="hist-fav" type="button" title="Add to favorites" aria-label="Add to favorites">☆</button>' +
+      `<button class="hist-fav" type="button" title="${starred ? 'Remove from favorites' : 'Add to favorites'}">${starred ? '★' : '☆'}</button>` +
       '<button class="hist-del" type="button" title="Remove" aria-label="Remove from history">✕</button>';
     row.querySelector('.hist-t').textContent = item.title;
     row.querySelector('.hist-a').textContent = ` · ${item.artist}`;
     row.addEventListener('click', () => playFromHistory(item));
     row.querySelector('.hist-fav').addEventListener('click', (e) => {
       e.stopPropagation();
-      addToFavorites(item);
+      toggleFavorite(item);
     });
     row.querySelector('.hist-del').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -372,8 +396,9 @@ function setNowPlaying(track, videoId) {
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
   npGenre.textContent = track.genre;
-  npPlayPause.textContent = ICON_PAUSE; // a freshly loaded track auto-plays
+  npPlayPause.textContent = ICON_PAUSE;
   nowPlaying.classList.add('visible');
+  updateStarButton();
 
   saveHistory();
   renderFavorites();
