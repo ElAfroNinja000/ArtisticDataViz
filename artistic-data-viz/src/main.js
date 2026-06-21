@@ -219,7 +219,10 @@ const ICON_PLAY = '▶︎';
 npPlayPause.textContent = ICON_PAUSE;
 
 let ytPlayer = null;
-playerReady.then((p) => { ytPlayer = p; });
+playerReady.then((p) => {
+  ytPlayer = p;
+  ytPlayer.setVolume(currentVolume); // apply the chosen volume (default 50%) once ready
+});
 
 npPlayPause.addEventListener('click', () => {
   if (!ytPlayer) return;
@@ -392,10 +395,14 @@ panel.className = 'ui-pill';
 panel.id = 'sphere-panel';
 panel.innerHTML =
   '<div class="sp-row"><span>Capacity: <b class="sp-count"></b></span><button class="sp-close" type="button">×</button></div>' +
-  `<input class="sp-range" type="range" min="500" max="${TOTAL_POINTS}" step="100">`;
+  `<input class="sp-range" type="range" min="500" max="${TOTAL_POINTS}" step="100">` +
+  '<div class="sp-row"><span>Volume: <b class="sp-vol"></b></span></div>' +
+  '<input class="sp-volume" type="range" min="0" max="100" step="1">';
 document.body.appendChild(panel);
 const spCount = panel.querySelector('.sp-count');
 const range = panel.querySelector('.sp-range');
+const spVol = panel.querySelector('.sp-vol');
+const volRange = panel.querySelector('.sp-volume');
 
 chip.addEventListener('click', () => { panel.classList.add('open'); chip.style.display = 'none'; });
 panel.querySelector('.sp-close').addEventListener('click', () => { panel.classList.remove('open'); chip.style.display = ''; });
@@ -409,6 +416,17 @@ function applyCount(n) {
 
 range.addEventListener('input', () => applyCount(+range.value));
 applyCount(currentCount);
+
+// --- Volume control (drives the hidden YouTube player; default 50%, not persisted) ---
+let currentVolume = 50;
+function applyVolume(v) {
+  currentVolume = Math.max(0, Math.min(100, Math.round(v)));
+  volRange.value = currentVolume;
+  spVol.textContent = `${currentVolume}%`;
+  if (ytPlayer) { ytPlayer.unMute(); ytPlayer.setVolume(currentVolume); }
+}
+volRange.addEventListener('input', () => applyVolume(+volRange.value));
+applyVolume(currentVolume);
 
 // --- Render loop ---
 const animate = () => {
