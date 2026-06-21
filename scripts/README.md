@@ -34,6 +34,11 @@ The Vite dev server must be running first (from `artistic-data-viz/`):
 npm run dev          # serves on http://localhost:5173
 ```
 
+The `dev` script binds `vite --host` (all interfaces, IPv4 included). This matters:
+`adb reverse` forwards the device's `localhost:5173` to the host's **IPv4** loopback,
+but plain `vite` binds IPv6 (`[::1]`) only — which shows up as `ERR_EMPTY_RESPONSE`
+in the emulator. `--host` makes `0.0.0.0:5173` reachable, so the reverse works.
+
 Then drive the emulator (from the repo root):
 
 ```powershell
@@ -48,3 +53,15 @@ powershell scripts/android-emu.ps1 down    # stop the emulator
 `up` wires `adb reverse tcp:5173 tcp:5173`, so the emulator reaches the host dev
 server at `localhost:5173`. Screenshots are written under `scripts/.artifacts/`
 (gitignored) and can be opened/read directly.
+
+### First-run gotchas
+
+- **Chrome first-run** appears once on a fresh AVD ("Welcome to Chrome" → tap
+  *Use without an account*, then dismiss the notifications prompt with *No thanks*).
+  The AVD keeps user data between boots, so this is a one-time step; afterwards `up`
+  lands straight on the app.
+- **Emulator internet**: the local app loads fully over `adb reverse` (data JSON is
+  served by Vite), so layout/rendering testing works even when the emulator shows
+  "No internet connection". Click-to-play (YouTube) does need the emulator to have
+  outbound internet, which a cold boot may lack — not required for UI/mobile-config
+  testing, which is this tool's purpose.
