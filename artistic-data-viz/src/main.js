@@ -288,6 +288,8 @@ npStar.addEventListener('click', () => {
 // --- Favorites & History: collapse/expand with mutual exclusion ---
 let favoritesOpen = false;
 let historyOpen = false;
+renderFavorites();
+renderHistory();
 
 npFavoritesToggle.addEventListener('click', () => {
   favoritesOpen = !favoritesOpen;

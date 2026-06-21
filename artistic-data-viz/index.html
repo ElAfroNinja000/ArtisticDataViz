@@ -87,15 +87,15 @@
         left: 6px;
         cursor: pointer;
         border: none;
-        background: rgba(255, 255, 255, 0.16);
+        background: transparent;
         color: #fff;
-        border-radius: 6px;
-        padding: 2px 8px;
+        padding: 2px 4px;
         font-size: 13px;
         line-height: 1;
+        opacity: 0.55;
         z-index: 1;
       }
-      #nowplaying .np-collapse:hover { background: rgba(255, 255, 255, 0.28); }
+      #nowplaying .np-collapse:hover { opacity: 1; }
       /* Body wrapper hides when collapsed */
       #nowplaying .np-body { display: flex; flex-direction: column; gap: 8px; }
       #nowplaying.collapsed .np-body { display: none; }
