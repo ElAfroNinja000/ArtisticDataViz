@@ -16,3 +16,6 @@
 # Raw dataset (input to data_processing.py). The generated
 # spotify_clustered_3d.json lives in public/ and IS committed.
 /artistic-data-viz/src/spotify_data/
+
+# Android emulator screenshots captured by scripts/android-emu.ps1
+/scripts/.artifacts/
