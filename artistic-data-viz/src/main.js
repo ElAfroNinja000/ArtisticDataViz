@@ -173,16 +173,19 @@ function hideLabel() {
 // --- "My Songs" panel: now-playing header + a collapsible play history.
 // The YouTube iframe itself stays hidden; this panel is the only player UI. ---
 const HISTORY_KEY = 'artisticdataviz.history';
+const FAVORITES_KEY = 'artisticdataviz.favorites';
 const HISTORY_MAX = 50;
 
-// currentTrack = the now-playing header; history = previously played tracks (most
-// recent first, deduped by videoId, capped). Each entry carries the resolved videoId
-// so a history click can replay/copy without re-querying the YouTube API.
 let currentTrack = null;
 let history = [];
+let favorites = [];
 try {
   const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
   if (Array.isArray(saved)) history = saved.slice(0, HISTORY_MAX);
+} catch { /* ignore corrupt/blocked storage */ }
+try {
+  const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY));
+  if (Array.isArray(saved)) favorites = saved;
 } catch { /* ignore corrupt/blocked storage */ }
 
 const nowPlaying = document.createElement('div');
@@ -199,8 +202,11 @@ nowPlaying.innerHTML =
     '<div class="np-buttons">' +
       '<button class="np-playpause" type="button" title="Play / Pause"></button>' +
       '<button class="np-copy" type="button">⧉ Link</button>' +
+      '<button class="np-star" type="button" title="Add to favorites">☆</button>' +
     '</div>' +
   '</div>' +
+  '<button class="np-favorites-toggle" type="button"></button>' +
+  '<div class="np-favorites"></div>' +
   '<button class="np-history-toggle" type="button"></button>' +
   '<div class="np-history"></div>';
 document.body.appendChild(nowPlaying);
@@ -209,6 +215,9 @@ const npArtist = nowPlaying.querySelector('.np-artist');
 const npGenre = nowPlaying.querySelector('.np-genre');
 const npPlayPause = nowPlaying.querySelector('.np-playpause');
 const npCopy = nowPlaying.querySelector('.np-copy');
+const npStar = nowPlaying.querySelector('.np-star');
+const npFavoritesToggle = nowPlaying.querySelector('.np-favorites-toggle');
+const npFavorites = nowPlaying.querySelector('.np-favorites');
 const npHistoryToggle = nowPlaying.querySelector('.np-history-toggle');
 const npHistory = nowPlaying.querySelector('.np-history');
 
@@ -251,15 +260,91 @@ async function copyLink(videoId) {
 
 npCopy.addEventListener('click', () => copyLink(currentTrack?.videoId));
 
-// --- History collapse/expand (collapsed by default; state not persisted) ---
+// --- Star button: toggle the currently playing track in/out of favorites ---
+npStar.addEventListener('click', () => {
+  if (!currentTrack) return;
+  toggleFavorite(currentTrack);
+});
+
+// --- Favorites & History: collapse/expand with mutual exclusion ---
+let favoritesOpen = false;
 let historyOpen = false;
+
+npFavoritesToggle.addEventListener('click', () => {
+  favoritesOpen = !favoritesOpen;
+  if (favoritesOpen) historyOpen = false;
+  renderFavorites();
+  renderHistory();
+});
+
 npHistoryToggle.addEventListener('click', () => {
   historyOpen = !historyOpen;
+  if (historyOpen) favoritesOpen = false;
+  renderFavorites();
   renderHistory();
 });
 
 function saveHistory() {
   try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* storage blocked */ }
+}
+
+function saveFavorites() {
+  try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch { /* storage blocked */ }
+}
+
+function isFavorite(videoId) {
+  return favorites.some((f) => f.videoId === videoId);
+}
+
+function addToFavorites(item) {
+  if (isFavorite(item.videoId)) return;
+  favorites.unshift({ title: item.title, artist: item.artist, genre: item.genre, videoId: item.videoId });
+  saveFavorites();
+  updateStarButton();
+  renderFavorites();
+  renderHistory();
+}
+
+function removeFromFavorites(videoId) {
+  favorites = favorites.filter((f) => f.videoId !== videoId);
+  saveFavorites();
+  updateStarButton();
+  renderFavorites();
+  renderHistory();
+}
+
+function toggleFavorite(item) {
+  if (isFavorite(item.videoId)) removeFromFavorites(item.videoId);
+  else addToFavorites(item);
+}
+
+function updateStarButton() {
+  npStar.textContent = (currentTrack && isFavorite(currentTrack.videoId)) ? '★' : '☆';
+}
+
+function renderFavorites() {
+  npFavoritesToggle.style.display = favorites.length ? '' : 'none';
+  npFavoritesToggle.textContent = `Favorites · ${favorites.length} ${favoritesOpen ? '⌃' : '⌄'}`;
+  nowPlaying.classList.toggle('favorites-open', favoritesOpen && favorites.length > 0);
+  if (!favoritesOpen || !favorites.length) { npFavorites.innerHTML = ''; return; }
+
+  npFavorites.innerHTML = '';
+  favorites.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.innerHTML =
+      '<span class="hist-i">★</span>' +
+      '<span class="hist-t"></span><span class="hist-a"></span>' +
+      '<button class="hist-del" type="button" title="Remove from favorites" aria-label="Remove from favorites">✕</button>';
+    row.querySelector('.hist-t').textContent = item.title;
+    row.querySelector('.hist-a').textContent = ` · ${item.artist}`;
+    row.addEventListener('click', () => playFromHistory(item));
+    row.querySelector('.hist-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeFromFavorites(item.videoId);
+    });
+    npFavorites.appendChild(row);
+  });
 }
 
 function renderHistory() {
@@ -270,18 +355,21 @@ function renderHistory() {
 
   npHistory.innerHTML = '';
   history.forEach((item) => {
-    // A div (not a button) so the delete control can be a real nested <button>.
     const row = document.createElement('div');
     row.className = 'hist-row';
+    const starred = isFavorite(item.videoId);
     row.innerHTML =
       '<span class="hist-i">♪</span>' +
-      `<span class="hist-t"></span><span class="hist-a"></span>` +
+      '<span class="hist-t"></span><span class="hist-a"></span>' +
+      `<button class="hist-fav" type="button" title="${starred ? 'Remove from favorites' : 'Add to favorites'}">${starred ? '★' : '☆'}</button>` +
       '<button class="hist-del" type="button" title="Remove" aria-label="Remove from history">✕</button>';
     row.querySelector('.hist-t').textContent = item.title;
     row.querySelector('.hist-a').textContent = ` · ${item.artist}`;
-    // A history click replays the track (copy lives only on the now-playing header).
     row.addEventListener('click', () => playFromHistory(item));
-    // Delete: remove just this track from the history (don't trigger the row's replay).
+    row.querySelector('.hist-fav').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleFavorite(item);
+    });
     row.querySelector('.hist-del').addEventListener('click', (e) => {
       e.stopPropagation();
       history = history.filter((h) => h.videoId !== item.videoId);
@@ -306,10 +394,12 @@ function setNowPlaying(track, videoId) {
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
   npGenre.textContent = track.genre;
-  npPlayPause.textContent = ICON_PAUSE; // a freshly loaded track auto-plays
+  npPlayPause.textContent = ICON_PAUSE;
   nowPlaying.classList.add('visible');
+  updateStarButton();
 
   saveHistory();
+  renderFavorites();
   renderHistory();
 }
 
