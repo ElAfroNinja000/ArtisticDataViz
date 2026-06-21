@@ -69,7 +69,7 @@
         bottom: 12px;
         width: min(340px, 78vw);
         box-sizing: border-box;
-        padding: 8px 10px 8px 12px;
+        padding: 8px 10px 8px 30px;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -79,9 +79,29 @@
         pointer-events: none;
       }
       #nowplaying.visible { opacity: 1; transform: none; pointer-events: auto; }
-      /* Every descendant counts padding inside its width, so width:100% children
-         (rows, toggle) never overflow the panel and spawn a scrollbar. */
       #nowplaying * { box-sizing: border-box; }
+      /* Collapse button: top-left of the panel */
+      #nowplaying .np-collapse {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        cursor: pointer;
+        border: none;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        border-radius: 6px;
+        padding: 2px 8px;
+        font-size: 13px;
+        line-height: 1;
+        z-index: 1;
+      }
+      #nowplaying .np-collapse:hover { background: rgba(255, 255, 255, 0.28); }
+      /* Body wrapper hides when collapsed */
+      #nowplaying .np-body { display: flex; flex-direction: column; gap: 8px; }
+      #nowplaying.collapsed .np-body { display: none; }
+      #nowplaying.collapsed { padding: 6px 6px; }
+      /* Default idle message */
+      #nowplaying .np-default { font-size: 13px; opacity: 0.6; }
       #nowplaying .np-main { display: flex; align-items: center; gap: 10px; }
       #nowplaying .np-text { font-size: 13px; line-height: 1.35; min-width: 0; flex: 1; }
       #nowplaying .np-text > span {
@@ -238,6 +258,8 @@
           bottom: auto;
           width: 100%;
           max-width: none;
+          max-height: 20vh;
+          overflow: hidden auto;
           border-radius: 0;
           padding: 11px 16px;
           gap: 10px;
@@ -262,9 +284,9 @@
         #nowplaying .hist-fav,
         #nowplaying .hist-del { padding: 6px 10px; font-size: 14px; }
 
-        /* Capacity: bottom-right, with larger touch targets. */
+        /* Capacity: bottom-right, 75% width with larger touch targets. */
         #sphere-chip { padding: 11px 18px; font-size: 15px; }
-        #sphere-panel { width: min(420px, 94vw); padding: 15px 16px; gap: 12px; }
+        #sphere-panel { width: 75vw; padding: 15px 16px; gap: 12px; }
         #sphere-panel .sp-row { font-size: 15px; }
         #sphere-panel .sp-close { padding: 4px 12px; font-size: 17px; }
         #sphere-panel input[type="range"] { height: 30px; }
