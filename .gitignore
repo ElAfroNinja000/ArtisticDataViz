@@ -3,6 +3,8 @@
 
 # Claude Code local session/project files
 /.claude/
+# MCP server config holds the Trello token (a secret) — never commit it
+/.mcp.json
 
 # Secrets / local env (never commit real API keys)
 .env
