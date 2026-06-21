@@ -79,13 +79,16 @@
         pointer-events: none;
       }
       #nowplaying.visible { opacity: 1; transform: none; pointer-events: auto; }
+      /* Every descendant counts padding inside its width, so width:100% children
+         (rows, toggle) never overflow the panel and spawn a scrollbar. */
+      #nowplaying * { box-sizing: border-box; }
       #nowplaying .np-main { display: flex; align-items: center; gap: 10px; }
       #nowplaying .np-text { font-size: 13px; line-height: 1.35; min-width: 0; flex: 1; }
       #nowplaying .np-text > span {
         display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        /* Wrap long titles/artists onto a new line instead of truncating or forcing
+           a horizontal scrollbar (applies on desktop and mobile). */
+        overflow-wrap: anywhere;
       }
       #nowplaying .np-now {
         font-size: 10px;
@@ -126,7 +129,10 @@
         flex-direction: column;
         gap: 2px;
         max-height: 38vh;
-        overflow-y: auto;
+        /* y scrolls when the list is long; x stays hidden so a too-wide row can
+           never spawn a horizontal scrollbar (overflow-y:auto alone would make
+           overflow-x compute to auto). */
+        overflow: hidden auto;
       }
       #nowplaying.history-open .np-history { display: flex; }
       #nowplaying .hist-row {
@@ -145,23 +151,10 @@
       }
       #nowplaying .hist-row:hover { background: rgba(255, 255, 255, 0.10); }
       #nowplaying .hist-i { flex: none; opacity: 0.45; }
-      #nowplaying .hist-t {
-        flex: 0 1 auto;
-        font-weight: 600;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      #nowplaying .hist-a {
-        flex: 1 1 auto;
-        min-width: 0;
-        opacity: 0.6;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      #nowplaying .hist-copy { flex: none; margin-left: auto; opacity: 0; }
-      #nowplaying .hist-row:hover .hist-copy { opacity: 0.7; }
+      /* Title + artist wrap onto new lines if long, rather than truncating or
+         overflowing the row (which previously caused a horizontal scrollbar). */
+      #nowplaying .hist-t { flex: 0 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+      #nowplaying .hist-a { flex: 1 1 auto; min-width: 0; opacity: 0.6; overflow-wrap: anywhere; }
       /* Delete control: same pill style as the play/pause button */
       #nowplaying .hist-del {
         flex: none;
@@ -244,7 +237,6 @@
         #nowplaying .np-history-toggle { padding: 10px 12px; font-size: 14px; }
         #nowplaying .np-history { max-height: 50vh; }
         #nowplaying .hist-row { padding: 10px 10px; font-size: 14px; }
-        #nowplaying .hist-copy { opacity: 0.7; }
         #nowplaying .hist-del { padding: 6px 10px; font-size: 14px; }
 
         /* Capacity: bottom-right, with larger touch targets. */
