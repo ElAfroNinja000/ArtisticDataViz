@@ -197,7 +197,7 @@ nowPlaying.innerHTML =
       '<span class="np-genre"></span>' +
     '</div>' +
     '<div class="np-buttons">' +
-      '<button class="np-playpause" type="button" title="Play / Pause">⏸</button>' +
+      '<button class="np-playpause" type="button" title="Play / Pause"></button>' +
       '<button class="np-copy" type="button">⧉ Link</button>' +
     '</div>' +
   '</div>' +
@@ -212,6 +212,12 @@ const npCopy = nowPlaying.querySelector('.np-copy');
 const npHistoryToggle = nowPlaying.querySelector('.np-history-toggle');
 const npHistory = nowPlaying.querySelector('.np-history');
 
+// Text-presentation (U+FE0E) variants so the control renders as the same monochrome
+// glyph as on desktop, instead of a colored emoji on mobile (Android default).
+const ICON_PAUSE = '⏸︎';
+const ICON_PLAY = '▶︎';
+npPlayPause.textContent = ICON_PAUSE;
+
 let ytPlayer = null;
 playerReady.then((p) => { ytPlayer = p; });
 
@@ -220,10 +226,10 @@ npPlayPause.addEventListener('click', () => {
   // 1 === YT.PlayerState.PLAYING
   if (ytPlayer.getPlayerState() === 1) {
     ytPlayer.pauseVideo();
-    npPlayPause.textContent = '▶';
+    npPlayPause.textContent = ICON_PLAY;
   } else {
     ytPlayer.playVideo();
-    npPlayPause.textContent = '⏸';
+    npPlayPause.textContent = ICON_PAUSE;
   }
 });
 
@@ -297,7 +303,7 @@ function setNowPlaying(track, videoId) {
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
   npGenre.textContent = track.genre;
-  npPlayPause.textContent = '⏸'; // a freshly loaded track auto-plays
+  npPlayPause.textContent = ICON_PAUSE; // a freshly loaded track auto-plays
   nowPlaying.classList.add('visible');
 
   saveHistory();
