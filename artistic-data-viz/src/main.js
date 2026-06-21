@@ -341,9 +341,7 @@ function renderFavorites() {
     row.addEventListener('click', () => playFromHistory(item));
     row.querySelector('.hist-del').addEventListener('click', (e) => {
       e.stopPropagation();
-      favorites = favorites.filter((f) => f.videoId !== item.videoId);
-      saveFavorites();
-      renderFavorites();
+      removeFromFavorites(item.videoId);
     });
     npFavorites.appendChild(row);
   });
