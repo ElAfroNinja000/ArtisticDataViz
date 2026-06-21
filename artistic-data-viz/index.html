@@ -62,27 +62,33 @@
         backdrop-filter: blur(4px);
       }
 
-      /* "Now playing" banner (bottom-left, replaces the visible YouTube player) */
+      /* "My Songs" panel (bottom-left): now-playing header + collapsible history.
+         Replaces the visible YouTube player. */
       #nowplaying {
         left: 12px;
         bottom: 12px;
-        max-width: min(340px, 78vw);
+        width: min(340px, 78vw);
+        box-sizing: border-box;
         padding: 8px 10px 8px 12px;
         display: flex;
-        align-items: center;
-        gap: 10px;
+        flex-direction: column;
+        gap: 8px;
         opacity: 0;
         transform: translateY(8px);
         transition: opacity 0.3s ease, transform 0.3s ease;
         pointer-events: none;
       }
       #nowplaying.visible { opacity: 1; transform: none; pointer-events: auto; }
-      #nowplaying .np-text { font-size: 13px; line-height: 1.35; min-width: 0; }
+      /* Every descendant counts padding inside its width, so width:100% children
+         (rows, toggle) never overflow the panel and spawn a scrollbar. */
+      #nowplaying * { box-sizing: border-box; }
+      #nowplaying .np-main { display: flex; align-items: center; gap: 10px; }
+      #nowplaying .np-text { font-size: 13px; line-height: 1.35; min-width: 0; flex: 1; }
       #nowplaying .np-text > span {
         display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        /* Wrap long titles/artists onto a new line instead of truncating or forcing
+           a horizontal scrollbar (applies on desktop and mobile). */
+        overflow-wrap: anywhere;
       }
       #nowplaying .np-now {
         font-size: 10px;
@@ -105,6 +111,63 @@
       }
       #nowplaying .np-buttons button:hover { background: rgba(255, 255, 255, 0.28); }
       #nowplaying .np-playpause { font-size: 14px; line-height: 1; }
+
+      /* History: a toggle row + a scrollable list (shown only when expanded) */
+      #nowplaying .np-history-toggle {
+        cursor: pointer;
+        border: none;
+        background: rgba(255, 255, 255, 0.10);
+        color: #fff;
+        border-radius: 7px;
+        padding: 6px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      #nowplaying .np-history-toggle:hover { background: rgba(255, 255, 255, 0.18); }
+      #nowplaying .np-history {
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        max-height: 38vh;
+        /* y scrolls when the list is long; x stays hidden so a too-wide row can
+           never spawn a horizontal scrollbar (overflow-y:auto alone would make
+           overflow-x compute to auto). */
+        overflow: hidden auto;
+      }
+      #nowplaying.history-open .np-history { display: flex; }
+      #nowplaying .hist-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        color: #fff;
+        border-radius: 7px;
+        padding: 6px 8px;
+        font-size: 12px;
+        text-align: left;
+      }
+      #nowplaying .hist-row:hover { background: rgba(255, 255, 255, 0.10); }
+      #nowplaying .hist-i { flex: none; opacity: 0.45; }
+      /* Title + artist wrap onto new lines if long, rather than truncating or
+         overflowing the row (which previously caused a horizontal scrollbar). */
+      #nowplaying .hist-t { flex: 0 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+      #nowplaying .hist-a { flex: 1 1 auto; min-width: 0; opacity: 0.6; overflow-wrap: anywhere; }
+      /* Delete control: same pill style as the play/pause button */
+      #nowplaying .hist-del {
+        flex: none;
+        cursor: pointer;
+        border: none;
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        border-radius: 7px;
+        padding: 3px 7px;
+        font-size: 12px;
+        line-height: 1;
+      }
+      #nowplaying .hist-del:hover { background: rgba(255, 255, 255, 0.28); }
 
       /* Sphere-count control (bottom-right): a chip that expands into a panel */
       #sphere-chip {
@@ -157,10 +220,11 @@
           max-width: none;
           border-radius: 0;
           padding: 11px 16px;
-          gap: 14px;
+          gap: 10px;
           transform: translateY(-100%);
         }
         #nowplaying.visible { transform: none; }
+        #nowplaying .np-main { gap: 14px; }
         #nowplaying .np-text { font-size: 15px; }
         #nowplaying .np-now { font-size: 11px; }
         #nowplaying .np-title { font-size: 16px; }
@@ -169,6 +233,11 @@
         #nowplaying .np-buttons { flex-direction: row; align-items: center; gap: 8px; }
         #nowplaying .np-buttons button { padding: 9px 13px; font-size: 15px; }
         #nowplaying .np-playpause { font-size: 17px; }
+        /* History: larger touch targets; copy icon always visible (no hover on touch) */
+        #nowplaying .np-history-toggle { padding: 10px 12px; font-size: 14px; }
+        #nowplaying .np-history { max-height: 50vh; }
+        #nowplaying .hist-row { padding: 10px 10px; font-size: 14px; }
+        #nowplaying .hist-del { padding: 6px 10px; font-size: 14px; }
 
         /* Capacity: bottom-right, with larger touch targets. */
         #sphere-chip { padding: 11px 18px; font-size: 15px; }

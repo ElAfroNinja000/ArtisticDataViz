@@ -170,28 +170,47 @@ function hideLabel() {
   tooltip.classList.remove('visible');
 }
 
-// --- "Now playing" banner + copy (the YouTube iframe itself is hidden) ---
-let currentVideoId = null;
+// --- "My Songs" panel: now-playing header + a collapsible play history.
+// The YouTube iframe itself stays hidden; this panel is the only player UI. ---
+const HISTORY_KEY = 'artisticdataviz.history';
+const HISTORY_MAX = 50;
+
+// currentTrack = the now-playing header; history = previously played tracks (most
+// recent first, deduped by videoId, capped). Each entry carries the resolved videoId
+// so a history click can replay/copy without re-querying the YouTube API.
+let currentTrack = null;
+let history = [];
+try {
+  const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
+  if (Array.isArray(saved)) history = saved.slice(0, HISTORY_MAX);
+} catch { /* ignore corrupt/blocked storage */ }
+
 const nowPlaying = document.createElement('div');
 nowPlaying.className = 'ui-pill';
 nowPlaying.id = 'nowplaying';
 nowPlaying.innerHTML =
-  '<div class="np-text">' +
-    '<span class="np-now">Now playing:</span>' +
-    '<span class="np-title"></span>' +
-    '<span class="np-artist"></span>' +
-    '<span class="np-genre"></span>' +
+  '<div class="np-main">' +
+    '<div class="np-text">' +
+      '<span class="np-now">My Songs · now playing</span>' +
+      '<span class="np-title"></span>' +
+      '<span class="np-artist"></span>' +
+      '<span class="np-genre"></span>' +
+    '</div>' +
+    '<div class="np-buttons">' +
+      '<button class="np-playpause" type="button" title="Play / Pause">⏸</button>' +
+      '<button class="np-copy" type="button">⧉ Link</button>' +
+    '</div>' +
   '</div>' +
-  '<div class="np-buttons">' +
-    '<button class="np-playpause" type="button" title="Play / Pause">⏸</button>' +
-    '<button class="np-copy" type="button">⧉ Link</button>' +
-  '</div>';
+  '<button class="np-history-toggle" type="button"></button>' +
+  '<div class="np-history"></div>';
 document.body.appendChild(nowPlaying);
 const npTitle = nowPlaying.querySelector('.np-title');
 const npArtist = nowPlaying.querySelector('.np-artist');
 const npGenre = nowPlaying.querySelector('.np-genre');
 const npPlayPause = nowPlaying.querySelector('.np-playpause');
 const npCopy = nowPlaying.querySelector('.np-copy');
+const npHistoryToggle = nowPlaying.querySelector('.np-history-toggle');
+const npHistory = nowPlaying.querySelector('.np-history');
 
 let ytPlayer = null;
 playerReady.then((p) => { ytPlayer = p; });
@@ -208,24 +227,87 @@ npPlayPause.addEventListener('click', () => {
   }
 });
 
-npCopy.addEventListener('click', async () => {
-  if (!currentVideoId) return;
+// Flash the header copy button (used both for the now-playing track and after a
+// history-row copy, since a history click also makes that track the now-playing one).
+async function copyLink(videoId) {
+  if (!videoId) return;
   try {
-    await navigator.clipboard.writeText(`https://youtu.be/${currentVideoId}`);
+    await navigator.clipboard.writeText(`https://youtu.be/${videoId}`);
     npCopy.textContent = 'Copied!';
     setTimeout(() => { npCopy.textContent = '⧉ Link'; }, 1500);
   } catch (err) {
     console.error("Copy failed:", err);
   }
+}
+
+npCopy.addEventListener('click', () => copyLink(currentTrack?.videoId));
+
+// --- History collapse/expand (collapsed by default; state not persisted) ---
+let historyOpen = false;
+npHistoryToggle.addEventListener('click', () => {
+  historyOpen = !historyOpen;
+  renderHistory();
 });
 
-function showNowPlaying(track, videoId) {
-  currentVideoId = videoId;
+function saveHistory() {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* storage blocked */ }
+}
+
+function renderHistory() {
+  npHistoryToggle.style.display = history.length ? '' : 'none';
+  npHistoryToggle.textContent = `History · ${history.length} ${historyOpen ? '⌃' : '⌄'}`;
+  nowPlaying.classList.toggle('history-open', historyOpen && history.length > 0);
+  if (!historyOpen || !history.length) { npHistory.innerHTML = ''; return; }
+
+  npHistory.innerHTML = '';
+  history.forEach((item) => {
+    // A div (not a button) so the delete control can be a real nested <button>.
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.innerHTML =
+      '<span class="hist-i">♪</span>' +
+      `<span class="hist-t"></span><span class="hist-a"></span>` +
+      '<button class="hist-del" type="button" title="Remove" aria-label="Remove from history">✕</button>';
+    row.querySelector('.hist-t').textContent = item.title;
+    row.querySelector('.hist-a').textContent = ` · ${item.artist}`;
+    // A history click replays the track (copy lives only on the now-playing header).
+    row.addEventListener('click', () => playFromHistory(item));
+    // Delete: remove just this track from the history (don't trigger the row's replay).
+    row.querySelector('.hist-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      history = history.filter((h) => h.videoId !== item.videoId);
+      saveHistory();
+      renderHistory();
+    });
+    npHistory.appendChild(row);
+  });
+}
+
+// Set the now-playing header. Any track being displaced moves into the history
+// (deduped, capped); the incoming track is removed from the list so it never appears twice.
+function setNowPlaying(track, videoId) {
+  if (currentTrack && currentTrack.videoId !== videoId) {
+    history = history.filter((h) => h.videoId !== currentTrack.videoId);
+    history.unshift(currentTrack);
+    if (history.length > HISTORY_MAX) history.length = HISTORY_MAX;
+  }
+  history = history.filter((h) => h.videoId !== videoId);
+  currentTrack = { title: track.title, artist: track.artist, genre: track.genre, videoId };
+
   npTitle.textContent = track.title;
   npArtist.textContent = track.artist;
   npGenre.textContent = track.genre;
   npPlayPause.textContent = '⏸'; // a freshly loaded track auto-plays
   nowPlaying.classList.add('visible');
+
+  saveHistory();
+  renderHistory();
+}
+
+async function playFromHistory(item) {
+  const player = await playerReady;
+  player.loadVideoById(item.videoId);
+  setNowPlaying(item, item.videoId);
 }
 
 async function playTrack(index) {
@@ -238,7 +320,7 @@ async function playTrack(index) {
     if (videoId) {
       const player = await playerReady;
       player.loadVideoById(videoId);
-      showNowPlaying(track, videoId);
+      setNowPlaying(track, videoId);
     } else {
       alert("Video not found.");
     }
