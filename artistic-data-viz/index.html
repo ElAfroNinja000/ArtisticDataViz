@@ -133,6 +133,16 @@
            never spawn a horizontal scrollbar (overflow-y:auto alone would make
            overflow-x compute to auto). */
         overflow: hidden auto;
+        /* Thin, discreet scrollbar everywhere (matches the slim mobile overlay
+           look instead of the chunky native desktop scrollbar). */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+      }
+      #nowplaying .np-history::-webkit-scrollbar { width: 6px; }
+      #nowplaying .np-history::-webkit-scrollbar-track { background: transparent; }
+      #nowplaying .np-history::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.35);
+        border-radius: 3px;
       }
       #nowplaying.history-open .np-history { display: flex; }
       #nowplaying .hist-row {
@@ -232,7 +242,8 @@
         #nowplaying .np-genre { font-size: 13px; }
         #nowplaying .np-buttons { flex-direction: row; align-items: center; gap: 8px; }
         #nowplaying .np-buttons button { padding: 9px 13px; font-size: 15px; }
-        #nowplaying .np-playpause { font-size: 17px; }
+        /* Pause button keeps the PC sizing (overrides the enlarged mobile button) */
+        #nowplaying .np-buttons .np-playpause { padding: 5px 9px; font-size: 14px; line-height: 1; }
         /* History: larger touch targets; copy icon always visible (no hover on touch) */
         #nowplaying .np-history-toggle { padding: 10px 12px; font-size: 14px; }
         #nowplaying .np-history { max-height: 50vh; }

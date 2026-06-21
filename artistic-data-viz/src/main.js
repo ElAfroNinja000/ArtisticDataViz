@@ -357,7 +357,13 @@ canvas.addEventListener('pointerup', (e) => {
 // Hover only flags the position; the raycast itself runs at most once per frame
 // (cheap even at 45k instances) — see the animation loop.
 canvas.addEventListener('pointermove', (e) => {
-  if (e.pointerType !== 'mouse' || e.buttons !== 0) return;
+  if (e.pointerType !== 'mouse') {
+    // Touch/pen have no hover: a tap shows the tooltip, but moving the view
+    // afterwards should dismiss it (it would otherwise linger at the old spot).
+    hideLabel();
+    return;
+  }
+  if (e.buttons !== 0) return;
   hoverX = e.clientX;
   hoverY = e.clientY;
   hoverDirty = true;
