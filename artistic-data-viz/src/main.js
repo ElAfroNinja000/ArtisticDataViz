@@ -343,6 +343,21 @@ function updateStarButton() {
   npStar.textContent = (currentTrack && isFavorite(currentTrack.videoId)) ? '★' : '☆';
 }
 
+// On mobile, cap a list to 5 visible rows (the rest scroll). Measured from the
+// 5th row's bottom so wrapped (2-line) titles still count as one item. On desktop
+// the inline cap is cleared so the stylesheet's max-height applies.
+const LIST_MOBILE_MAX_W = 600;
+const LIST_VISIBLE_ROWS = 5;
+function clampList(container) {
+  container.style.maxHeight = '';
+  if (window.innerWidth > LIST_MOBILE_MAX_W) return;
+  const rows = container.children;
+  if (rows.length <= LIST_VISIBLE_ROWS) return;
+  const top = container.getBoundingClientRect().top;
+  const last = rows[LIST_VISIBLE_ROWS - 1].getBoundingClientRect();
+  container.style.maxHeight = `${Math.ceil(last.bottom - top)}px`;
+}
+
 function renderFavorites() {
   npFavoritesToggle.style.display = favorites.length ? '' : 'none';
   npFavoritesToggle.textContent = `Favorites · ${favorites.length} ${favoritesOpen ? '⌃' : '⌄'}`;
@@ -366,6 +381,7 @@ function renderFavorites() {
     });
     npFavorites.appendChild(row);
   });
+  clampList(npFavorites);
 }
 
 function renderHistory() {
@@ -399,7 +415,14 @@ function renderHistory() {
     });
     npHistory.appendChild(row);
   });
+  clampList(npHistory);
 }
+
+// Re-measure the open list when the viewport changes (rotation, breakpoint cross).
+window.addEventListener('resize', () => {
+  if (favoritesOpen) clampList(npFavorites);
+  if (historyOpen) clampList(npHistory);
+});
 
 // Set the now-playing header. Any track being displaced moves into the history
 // (deduped, capped); the incoming track is removed from the list so it never appears twice.

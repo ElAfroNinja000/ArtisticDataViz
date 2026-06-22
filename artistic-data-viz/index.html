@@ -69,7 +69,7 @@
         bottom: 12px;
         width: min(340px, 78vw);
         box-sizing: border-box;
-        padding: 8px 10px 8px 30px;
+        padding: 8px 10px;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -80,20 +80,19 @@
       }
       #nowplaying.visible { opacity: 1; transform: none; pointer-events: auto; }
       #nowplaying * { box-sizing: border-box; }
-      /* Collapse button: top-left of the panel */
+      /* Collapse toggle: a small in-flow button at the panel's top-left. In-flow
+         (not absolute) so it never overlaps the text and the panel always sizes to
+         it — including when collapsed, keeping it visible and tappable. */
       #nowplaying .np-collapse {
-        position: absolute;
-        top: 6px;
-        left: 6px;
+        align-self: flex-start;
         cursor: pointer;
         border: none;
         background: transparent;
         color: #fff;
-        padding: 2px 4px;
-        font-size: 13px;
+        padding: 2px 6px;
+        font-size: 14px;
         line-height: 1;
         opacity: 0.55;
-        z-index: 1;
       }
       #nowplaying .np-collapse:hover { opacity: 1; }
       /* Body wrapper hides when collapsed */
@@ -258,7 +257,10 @@
           bottom: auto;
           width: 100%;
           max-width: none;
-          max-height: 20vh;
+          /* Cap height so the panel never dominates the view, but high enough to
+             show the idle header + both list toggles without clipping (it still
+             only takes the height its content needs). */
+          max-height: 40vh;
           overflow: hidden auto;
           border-radius: 0;
           padding: 11px 16px;
@@ -266,6 +268,14 @@
           transform: translateY(-100%);
         }
         #nowplaying.visible { transform: none; }
+        /* Bigger touch target for the collapse toggle. */
+        #nowplaying .np-collapse { font-size: 20px; padding: 4px 10px; }
+        /* When a list is expanded, let the panel grow so it shows (the inner list
+           keeps its own 50vh scroll); the 20vh cap only constrains the idle header. */
+        #nowplaying.favorites-open,
+        #nowplaying.history-open { max-height: 90vh; }
+        /* Collapsed: a compact top-left pill instead of a full-width band. */
+        #nowplaying.collapsed { width: auto; right: auto; border-radius: 0 0 12px 0; }
         #nowplaying .np-main { gap: 14px; }
         #nowplaying .np-text { font-size: 15px; }
         #nowplaying .np-now { font-size: 11px; }
