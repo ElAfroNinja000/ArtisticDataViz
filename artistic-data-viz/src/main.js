@@ -146,6 +146,9 @@ function pickTouch(clientX, clientY) {
 
 // --- Tooltip (anchored to the upper-right of the cursor) ---
 let labelIndex = null;
+// The last clicked sphere stays highlighted indefinitely (until another is clicked).
+// Hover highlights transiently; when hover ends the highlight returns to this.
+let selectedIndex = -1;
 const TOOLTIP_OFFSET_PX = 14;
 const tooltip = document.createElement('div');
 tooltip.className = 'label';
@@ -166,7 +169,8 @@ function showLabel(index, clientX, clientY) {
 function hideLabel() {
   if (labelIndex === null) return;
   labelIndex = null;
-  uSelected.value = -1;
+  // Fall back to the persistent click selection instead of clearing the highlight.
+  uSelected.value = selectedIndex;
   tooltip.classList.remove('visible');
 }
 
@@ -494,7 +498,8 @@ canvas.addEventListener('pointerup', (e) => {
   const index = e.pointerType === 'touch'
     ? pickTouch(e.clientX, e.clientY)
     : raycastInstance(e.clientX, e.clientY);
-  if (index === null) { hideLabel(); return; } // tap on empty space dismisses
+  if (index === null) { hideLabel(); return; } // tap on empty space dismisses the tooltip (selection stays)
+  selectedIndex = index; // persist the highlight on the clicked sphere
   showLabel(index, e.clientX, e.clientY);
   playTrack(index);
 });
